@@ -1,4 +1,4 @@
-const VERSION = '0.0.2';
+const VERSION = '0.0.3';
 const CACHE = `piano-trainer-${VERSION}`;
 
 const ASSETS = [
@@ -19,7 +19,9 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the HTTP cache so a new VERSION never stores stale files.
+  const reqs = ASSETS.map((u) => new Request(u, { cache: 'reload' }));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(reqs)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

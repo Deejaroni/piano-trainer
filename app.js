@@ -1,6 +1,13 @@
 const $ = (id) => document.getElementById(id);
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) {
+  // When an updated worker takes over, reload once so the new version shows.
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) location.reload();
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+}
 
 // Version label is read from sw.js so VERSION lives in one place.
 fetch('sw.js')
