@@ -1,4 +1,6 @@
-import { createDetector, WINDOW } from './js/detect.js';
+import { startMic, audioContext, suspendAudio, loadSynth } from './js/audio.js';
+import { createFalling } from './js/falling.js';
+import { createPractice } from './js/practice.js';
 import { listSongs, putSong, deleteSong, exportAll, importAll } from './js/storage.js';
 import { importFile, applyHands } from './js/songs.js';
 import { loadAppSettings, saveAppSettings } from './js/settings.js';
@@ -20,25 +22,19 @@ fetch('sw.js')
   .then((t) => { $('version').textContent = 'v' + (t.match(/VERSION = '([^']+)'/) || [, '?'])[1]; })
   .catch(() => {});
 
-let ctx;
+let listenTick = null, listenRaf = 0;
 
 async function start() {
   $('start').disabled = true;
   try {
-    // Created/resumed inside the tap handler (iOS requirement).
-    ctx = ctx || new AudioContext();
-    if (ctx.state !== 'running') await ctx.resume();
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-    });
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = WINDOW;
-    ctx.createMediaStreamSource(stream).connect(analyser); // not connected to speakers
-    const detector = createDetector(analyser, ctx.sampleRate);
+    const detector = await startMic(); // creates/resumes the AudioContext inside this tap
+    const ctx = audioContext();
     $('status').textContent = `Listening (${ctx.sampleRate} Hz)`;
     $('start').textContent = 'Listening';
 
-    const tick = () => {
+    listenTick = () => {
+      // Only one screen reads the detector at a time.
+      if ($('listen').hidden || document.hidden) { listenRaf = 0; return; }
       const { db, note } = detector.read();
       // With AGC off the raw iPad mic is quiet; normal playing sits around -60..-30 dB.
       const pct = Math.max(0, Math.min(100, ((db + 80) / 60) * 100)); // -80 dB .. -20 dB
@@ -48,9 +44,9 @@ async function start() {
       $('detail').textContent = note
         ? `${note.freq.toFixed(1)} Hz · ${note.cents >= 0 ? '+' : ''}${note.cents}¢ · clarity ${note.clarity.toFixed(2)}`
         : '';
-      requestAnimationFrame(tick);
+      listenRaf = requestAnimationFrame(listenTick);
     };
-    tick();
+    listenTick();
   } catch (err) {
     $('status').textContent = 'Mic error: ' + err.message;
     $('start').disabled = false;
@@ -60,14 +56,17 @@ async function start() {
 $('start').addEventListener('click', start);
 
 // ---------- Tabs ----------
-for (const name of ['library', 'listen']) {
-  $('tab-' + name).addEventListener('click', () => {
-    for (const n of ['library', 'listen']) {
-      $(n).hidden = n !== name;
-      $('tab-' + n).classList.toggle('on', n === name);
-    }
-  });
+const TABS = ['library', 'practice', 'listen'];
+function showTab(name) {
+  for (const n of TABS) {
+    $(n).hidden = n !== name;
+    $('tab-' + n).classList.toggle('on', n === name);
+  }
+  if (name === 'practice') startLoop();
+  else { prac.pause(); stopLoop(); }
+  if (name === 'listen' && listenTick && !listenRaf) listenTick();
 }
+for (const name of TABS) $('tab-' + name).addEventListener('click', () => showTab(name));
 
 // ---------- Library ----------
 const msg = (t) => { $('msg').textContent = t; };
@@ -89,6 +88,7 @@ async function renderLibrary() {
       el('div', { className: 'info' },
         el('div', { className: 'title', textContent: s.title }),
         el('div', { className: 'muted', textContent: `${s.kind === 'midi' ? 'MIDI' : 'MusicXML'} · ${fmtTime(s.duration)} · ${played} notes` })),
+      el('button', { className: 'small on', textContent: 'Practice', onclick: () => openPractice(s) }),
       el('button', { className: 'small', textContent: 'Rename', onclick: () => renameSong(s) }),
       el('button', { className: 'small', textContent: 'Settings', onclick: () => openSongDialog(s) }),
       el('button', { className: 'small danger', textContent: 'Delete', onclick: () => removeSong(s) })));
@@ -165,6 +165,7 @@ $('sd-save').addEventListener('click', async () => {
   await putSong(song);
   $('song-dialog').close();
   renderLibrary();
+  if (pSong && pSong.id === song.id) loadPractice(song); // hand mapping may have changed
 });
 
 // ---------- Backup ----------
@@ -210,9 +211,130 @@ async function initSettings() {
 }
 $('headphones').addEventListener('click', async () => {
   appSettings.headphones = !appSettings.headphones;
+  if (!appSettings.headphones) prac.setPlayer(null);
   await saveAppSettings(appSettings);
   initSettings();
 });
+
+// ---------- Practice ----------
+const LOOK = 3; // real seconds of notes visible above the keyboard
+const fall = createFalling($('fall'));
+const prac = createPractice();
+let pSong = null, detector = null, raf = 0, lastTs = 0, shown = '';
+
+function loadPractice(song) {
+  pSong = song;
+  prac.load(song);
+  fall.setSong(prac.notes);
+  $('p-title').textContent = song.title;
+  $('p-play').disabled = false;
+  syncControls();
+}
+
+function openPractice(song) {
+  loadPractice(song);
+  showTab('practice');
+}
+
+function saveSong() { if (pSong) putSong(pSong); }
+
+function syncControls() {
+  seg($('p-mode'), [[true, 'Wait'], [false, 'Free play']], prac.wait, (v) => {
+    prac.wait = v; pSong.settings.wait = v; prac.restart(); saveSong();
+  });
+  seg($('p-hands'), [['R', 'Right'], ['L', 'Left'], ['both', 'Both']], prac.hands, (v) => {
+    prac.setHands(v); pSong.settings.hands = v; saveSong();
+  });
+  $('p-tempo').value = Math.round(prac.speed * 100);
+  $('p-tempo-val').textContent = $('p-tempo').value + '%';
+  syncLoop();
+}
+
+function syncLoop() {
+  const { a, b, on } = prac.loop;
+  $('p-a').textContent = a == null ? 'A' : 'A ' + fmtTime(Math.max(0, a));
+  $('p-b').textContent = b == null ? 'B' : 'B ' + fmtTime(Math.max(0, b));
+  $('p-loop').classList.toggle('on', on);
+  $('p-loop').disabled = a == null || b == null;
+}
+
+$('p-tempo').addEventListener('input', (e) => {
+  prac.speed = e.target.value / 100;
+  $('p-tempo-val').textContent = e.target.value + '%';
+});
+$('p-tempo').addEventListener('change', (e) => { pSong.settings.tempo = +e.target.value; saveSong(); });
+
+function setMark(k) {
+  const L = prac.loop;
+  L[k] = prac.t;
+  if (L.a != null && L.b != null && L.b < L.a) [L.a, L.b] = [L.b, L.a];
+  if (L.a === L.b) L.on = false;
+  syncLoop();
+}
+$('p-a').addEventListener('click', () => setMark('a'));
+$('p-b').addEventListener('click', () => setMark('b'));
+$('p-loop').addEventListener('click', () => {
+  prac.loop.on = !prac.loop.on;
+  if (prac.loop.on) prac.seek(prac.loop.a);
+  syncLoop();
+});
+$('p-restart').addEventListener('click', () => prac.restart());
+
+$('p-play').addEventListener('click', async () => {
+  if (prac.playing) { prac.pause(); return; }
+  try {
+    detector = await startMic(); // inside the tap: creates/resumes audio
+    prac.setPlayer(appSettings.headphones ? await loadSynth() : null);
+    prac.play();
+  } catch (err) {
+    $('p-score').textContent = 'Audio error: ' + err.message;
+  }
+});
+
+// Drag the notes while paused to move through the song.
+let dragY = null;
+$('fall').addEventListener('pointerdown', (e) => { if (!prac.playing && pSong) dragY = e.clientY; });
+$('fall').addEventListener('pointermove', (e) => {
+  if (dragY == null) return;
+  prac.seek(prac.t + (e.clientY - dragY) / fall.pxPerSec(LOOK * prac.speed));
+  dragY = e.clientY;
+});
+for (const ev of ['pointerup', 'pointercancel']) $('fall').addEventListener(ev, () => { dragY = null; });
+
+function frame(ts) {
+  const dt = Math.min(0.1, (ts - lastTs) / 1000);
+  lastTs = ts;
+  const { db, note } = detector ? detector.read() : { db: -100, note: null };
+  prac.update(dt, note, db);
+  fall.draw(prac.t, LOOK * prac.speed, note ? note.midi : null);
+
+  // Touch the DOM only when the text changes.
+  const { hits, misses, total } = prac.stats();
+  const txt = (prac.playing ? 'Pause' : 'Play') + '|' + (pSong
+    ? `${fmtTime(Math.max(0, prac.t))} / ${fmtTime(prac.end)} · ${hits}/${total} hit` + (prac.wait ? '' : ` · ${misses} missed`) + (prac.done ? ' · Done' : '')
+    : 'Pick a song in the Library.');
+  if (txt !== shown) {
+    shown = txt;
+    const [btn, score] = txt.split('|');
+    $('p-play').textContent = btn;
+    $('p-score').textContent = score;
+  }
+  raf = requestAnimationFrame(frame);
+}
+function startLoop() {
+  if (raf || document.hidden) return;
+  lastTs = performance.now();
+  raf = requestAnimationFrame(frame);
+}
+function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
+
+// Background: pause cleanly; the user taps Play to continue.
+function toBackground() { prac.pause(); stopLoop(); suspendAudio(); }
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) toBackground();
+  else if (!$('practice').hidden) startLoop();
+});
+window.addEventListener('pagehide', toBackground);
 
 initSettings();
 renderLibrary();

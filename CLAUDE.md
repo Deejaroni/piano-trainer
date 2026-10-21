@@ -71,6 +71,14 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   own reader, staff 1 = R, staff 2 = L, ties/chords/tempo, repeats ignored),
   js/settings.js. Library tab: import, rename, delete, per-song tempo/hands/wait
   and track-to-hand mapping. Notes: {pitch, start s, dur s, track, hand R|L|null}.
+- v0.3.0 (Phase 3): Practice tab. js/audio.js (shared ctx + detector, lazy
+  Tone.js synth), js/falling.js (canvas, keyboard sized to song range, R green /
+  L blue), js/practice.js (clock, Wait mode on chord top note, Free play hit
+  window -0.15/+0.3 s real time, A-B loop, other-hand accompaniment when
+  Headphones on). Same pitch re-counts only after silence or a +6 dB rise.
+  Drag canvas while paused to scrub. Auto-pauses and suspends audio in background.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
-- Next: test import/export on iPad, then chords.js, falling notes and Wait mode.
+  Phase 3 logic tested with simulated pitches only; mic timing untested on iPad.
+- Next: test Practice on iPad (60 fps, repeated notes, Free play window), then
+  chords.js (Phase 4).

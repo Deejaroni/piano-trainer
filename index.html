@@ -45,6 +45,12 @@
     .row > .label { flex: 1; min-width: 200px; }
     .seg { display: inline-flex; gap: 6px; }
     input[type=range] { width: 280px; height: 44px; }
+    #practice { justify-content: flex-start; align-items: stretch; gap: 8px;
+      padding: 88px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+    #practice .bar { gap: 8px; }
+    .tempo { display: inline-flex; align-items: center; gap: 8px; }
+    .tempo input { width: 180px; }
+    #fall { flex: 1; min-height: 0; width: 100%; border-radius: 12px; touch-action: none; }
     .meter { width: min(80vw, 720px); height: 40px; background: var(--track); border-radius: 12px; overflow: hidden; }
     .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 50ms linear; }
     #status { color: var(--muted); min-height: 1.4em; }
@@ -56,6 +62,7 @@
 <body>
   <nav>
     <button id="tab-library" class="on">Library</button>
+    <button id="tab-practice">Practice</button>
     <button id="tab-listen">Listen</button>
   </nav>
   <main id="library">
@@ -68,6 +75,18 @@
     <div id="msg" class="muted"></div>
     <div id="songs"></div>
   </main>
+  <main id="practice" hidden>
+    <div class="bar">
+      <button id="p-play" class="btn primary" disabled>Play</button>
+      <button id="p-restart" class="btn">Restart</button>
+      <span class="seg" id="p-mode"></span>
+      <span class="seg" id="p-hands"></span>
+      <label class="tempo">Tempo <span id="p-tempo-val">100%</span><input id="p-tempo" type="range" min="25" max="100" step="5"></label>
+      <span class="seg"><button id="p-a" class="small">A</button><button id="p-b" class="small">B</button><button id="p-loop" class="small" disabled>Loop</button></span>
+    </div>
+    <div><b id="p-title"></b> <span id="p-score" class="muted">Pick a song in the Library.</span></div>
+    <canvas id="fall"></canvas>
+  </main>
   <main id="listen" hidden>
     <button id="start">Start</button>
     <div id="note">–</div>
@@ -77,7 +96,7 @@
   </main>
   <dialog id="song-dialog">
     <h2 id="sd-title"></h2>
-    <div class="row"><span class="label">Tempo <span id="sd-tempo-val"></span></span><input id="sd-tempo" type="range" min="25" max="150" step="5"></div>
+    <div class="row"><span class="label">Tempo <span id="sd-tempo-val"></span></span><input id="sd-tempo" type="range" min="25" max="100" step="5"></div>
     <div class="row"><span class="label">Hands to play</span><span class="seg" id="sd-hands"></span></div>
     <div class="row"><span class="label">Wait for correct note</span><span class="seg" id="sd-wait"></span></div>
     <h3>Tracks</h3>
