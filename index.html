@@ -23,6 +23,8 @@
     .meter { width: min(80vw, 720px); height: 40px; background: var(--track); border-radius: 12px; overflow: hidden; }
     .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 50ms linear; }
     #status { color: var(--muted); min-height: 1.4em; }
+    #note { font-size: 140px; font-weight: 700; line-height: 1; min-height: 140px; font-variant-numeric: tabular-nums; }
+    #detail { color: var(--muted); font-size: 22px; min-height: 1.4em; font-variant-numeric: tabular-nums; }
     #version { position: fixed; right: 16px; bottom: 12px; color: var(--muted); font-size: 14px; }
   </style>
 </head>
@@ -30,6 +32,8 @@
   <main>
     <h1>Piano Trainer</h1>
     <button id="start">Start</button>
+    <div id="note">–</div>
+    <div id="detail"></div>
     <div class="meter"><div id="level"></div></div>
     <div id="status">Tap Start to use the microphone.</div>
   </main>

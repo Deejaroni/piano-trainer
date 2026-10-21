@@ -60,5 +60,8 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   serving stale files into new caches); page reloads once on controllerchange.
 - Measured on iPad (v0.0.3): input runs from about -80 dB (quiet) to -20 dB
   (loud). Use this range when setting the note-onset threshold in detect.js.
-- Known issues: icons are placeholders. Live on iPad (v0.0.1 confirmed working).
-- Next: Phase 1, pitch detection (detect.js) with a note readout.
+- v0.1.0 (Phase 1): js/detect.js wraps pitchy (4096 window, gate -55 dB,
+  clarity 0.9, 3 stable frames, A0..C8). Big note readout + Hz, cents, clarity.
+- Known issues: icons are placeholders. Phase 1 not yet tested on the iPad.
+- Next: test detection across the range on the piano and tune the constants
+  at the top of detect.js; then chords.js.
