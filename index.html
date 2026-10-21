@@ -16,10 +16,35 @@
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
       font: 18px/1.4 -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none;
       -webkit-tap-highlight-color: transparent; }
-    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 24px; }
+    nav { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 8px; z-index: 2; background: var(--bg);
+      padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
+    nav button { font-size: 20px; padding: 12px 28px; min-height: 56px; background: var(--track); color: var(--fg); }
+    nav button.on { background: var(--accent); color: #0b0b10; }
+    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 96px 24px 24px; }
+    main[hidden] { display: none; }
+    #library { justify-content: flex-start; align-items: stretch; gap: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     button { font: inherit; font-size: 28px; padding: 20px 56px; min-height: 72px; border: 0; border-radius: 16px;
       background: var(--accent); color: #0b0b10; font-weight: 600; touch-action: manipulation; }
     button:disabled { opacity: .5; }
+    .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .btn, .small { font: inherit; font-weight: 600; border: 0; border-radius: 14px; touch-action: manipulation;
+      display: inline-flex; align-items: center; justify-content: center; background: var(--track); color: var(--fg); }
+    .btn { font-size: 20px; padding: 12px 24px; min-height: 56px; }
+    .small { font-size: 18px; padding: 8px 18px; min-height: 52px; min-width: 52px; }
+    .btn.primary, .small.on { background: var(--accent); color: #0b0b10; }
+    .small.danger { color: #f87171; }
+    .song { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 10px; background: #22222c; border-radius: 16px; }
+    .song .info { flex: 1; min-width: 0; }
+    .song .title { font-size: 22px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .muted { color: var(--muted); font-size: 16px; }
+    #msg { min-height: 1.4em; }
+    dialog { background: #22222c; color: var(--fg); border: 0; border-radius: 20px; padding: 24px; width: min(92vw, 760px); max-height: 88vh; }
+    dialog::backdrop { background: rgba(0, 0, 0, .6); }
+    dialog h2 { margin: 0 0 8px; }
+    .row { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
+    .row > .label { flex: 1; min-width: 200px; }
+    .seg { display: inline-flex; gap: 6px; }
+    input[type=range] { width: 280px; height: 44px; }
     .meter { width: min(80vw, 720px); height: 40px; background: var(--track); border-radius: 12px; overflow: hidden; }
     .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 50ms linear; }
     #status { color: var(--muted); min-height: 1.4em; }
@@ -29,15 +54,41 @@
   </style>
 </head>
 <body>
-  <main>
-    <h1>Piano Trainer</h1>
+  <nav>
+    <button id="tab-library" class="on">Library</button>
+    <button id="tab-listen">Listen</button>
+  </nav>
+  <main id="library">
+    <div class="bar">
+      <label class="btn primary">Import song<input id="import" type="file" hidden></label>
+      <button id="export" class="btn">Export backup</button>
+      <label class="btn">Restore backup<input id="restore" type="file" accept=".json,application/json" hidden></label>
+      <button id="headphones" class="btn">Headphones: off</button>
+    </div>
+    <div id="msg" class="muted"></div>
+    <div id="songs"></div>
+  </main>
+  <main id="listen" hidden>
     <button id="start">Start</button>
     <div id="note">–</div>
     <div id="detail"></div>
     <div class="meter"><div id="level"></div></div>
     <div id="status">Tap Start to use the microphone.</div>
   </main>
+  <dialog id="song-dialog">
+    <h2 id="sd-title"></h2>
+    <div class="row"><span class="label">Tempo <span id="sd-tempo-val"></span></span><input id="sd-tempo" type="range" min="25" max="150" step="5"></div>
+    <div class="row"><span class="label">Hands to play</span><span class="seg" id="sd-hands"></span></div>
+    <div class="row"><span class="label">Wait for correct note</span><span class="seg" id="sd-wait"></span></div>
+    <h3>Tracks</h3>
+    <div id="sd-tracks"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button id="sd-cancel" class="btn">Cancel</button>
+      <button id="sd-save" class="btn primary">Save</button>
+    </div>
+  </dialog>
   <div id="version">v?</div>
+  <script src="vendor/tonejs-midi.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

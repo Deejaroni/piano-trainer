@@ -66,5 +66,11 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   only reached ~-60 dB, so -55 blocked nearly everything. Chords show no name
   by design until chords.js.
 - v0.1.1 confirmed on iPad with the piano: single notes read correctly.
-- Known issues: icons are placeholders. iPad mic input is very quiet.
-- Next: chords.js (chord detection), then falling notes and Wait mode.
+- v0.2.0 (Phase 2): song library. js/storage.js (IndexedDB: songs + kv, JSON
+  backup export/restore), js/songs.js (MIDI via @tonejs/midi; MusicXML/.mxl via
+  own reader, staff 1 = R, staff 2 = L, ties/chords/tempo, repeats ignored),
+  js/settings.js. Library tab: import, rename, delete, per-song tempo/hands/wait
+  and track-to-hand mapping. Notes: {pitch, start s, dur s, track, hand R|L|null}.
+- Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
+  DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
+- Next: test import/export on iPad, then chords.js, falling notes and Wait mode.
