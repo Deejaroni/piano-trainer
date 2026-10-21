@@ -58,5 +58,7 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   (AGC off) is quiet, so the old -60..0 dB range only showed very loud sounds.
 - v0.0.3: SW install fetches with cache:'reload' (GitHub Pages max-age=600 was
   serving stale files into new caches); page reloads once on controllerchange.
+- Measured on iPad (v0.0.3): input runs from about -80 dB (quiet) to -20 dB
+  (loud). Use this range when setting the note-onset threshold in detect.js.
 - Known issues: icons are placeholders. Live on iPad (v0.0.1 confirmed working).
 - Next: Phase 1, pitch detection (detect.js) with a note readout.
