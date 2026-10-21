@@ -65,6 +65,6 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
 - v0.1.1: gate lowered to -70 dB, clarity 0.85. On iPad, loud held singing
   only reached ~-60 dB, so -55 blocked nearly everything. Chords show no name
   by design until chords.js.
+- v0.1.1 confirmed on iPad with the piano: single notes read correctly.
 - Known issues: icons are placeholders. iPad mic input is very quiet.
-- Next: test detection across the range on the piano and tune the constants
-  at the top of detect.js; then chords.js.
+- Next: chords.js (chord detection), then falling notes and Wait mode.
