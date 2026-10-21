@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#18181f">
+  <title>Piano Trainer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <style>
+    :root { --bg: #18181f; --fg: #f2f2f5; --muted: #8a8a99; --accent: #4ade80; --track: #2c2c38; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+      font: 18px/1.4 -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent; }
+    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 24px; }
+    button { font: inherit; font-size: 28px; padding: 20px 56px; min-height: 72px; border: 0; border-radius: 16px;
+      background: var(--accent); color: #0b0b10; font-weight: 600; touch-action: manipulation; }
+    button:disabled { opacity: .5; }
+    .meter { width: min(80vw, 720px); height: 40px; background: var(--track); border-radius: 12px; overflow: hidden; }
+    .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 50ms linear; }
+    #status { color: var(--muted); min-height: 1.4em; }
+    #version { position: fixed; right: 16px; bottom: 12px; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Piano Trainer</h1>
+    <button id="start">Start</button>
+    <div class="meter"><div id="level"></div></div>
+    <div id="status">Tap Start to use the microphone.</div>
+  </main>
+  <div id="version">v?</div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

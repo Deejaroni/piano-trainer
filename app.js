@@ -1,0 +1,45 @@
+const $ = (id) => document.getElementById(id);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+// Version label is read from sw.js so VERSION lives in one place.
+fetch('sw.js')
+  .then((r) => r.text())
+  .then((t) => { $('version').textContent = 'v' + (t.match(/VERSION = '([^']+)'/) || [, '?'])[1]; })
+  .catch(() => {});
+
+let ctx;
+
+async function start() {
+  $('start').disabled = true;
+  try {
+    // Created/resumed inside the tap handler (iOS requirement).
+    ctx = ctx || new AudioContext();
+    if (ctx.state !== 'running') await ctx.resume();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    ctx.createMediaStreamSource(stream).connect(analyser); // not connected to speakers
+    const buf = new Float32Array(analyser.fftSize);
+    $('status').textContent = `Listening (${ctx.sampleRate} Hz)`;
+    $('start').textContent = 'Listening';
+
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) sum += v * v;
+      const db = 20 * Math.log10(Math.sqrt(sum / buf.length) || 1e-8);
+      const pct = Math.max(0, Math.min(100, ((db + 60) / 60) * 100)); // -60 dB .. 0 dB
+      $('level').style.width = pct + '%';
+      requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (err) {
+    $('status').textContent = 'Mic error: ' + err.message;
+    $('start').disabled = false;
+  }
+}
+
+$('start').addEventListener('click', start);

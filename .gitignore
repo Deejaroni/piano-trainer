@@ -1,0 +1,8 @@
+# Song files are never committed
+*.mid
+*.midi
+*.musicxml
+*.mxl
+*.xml
+node_modules/
+.claude/
