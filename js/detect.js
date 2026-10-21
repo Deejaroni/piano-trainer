@@ -2,8 +2,8 @@ import { PitchDetector } from '../vendor/pitchy.js';
 
 // Tuning knobs. Measured iPad input: about -80 dB quiet, -20 dB loud.
 export const WINDOW = 4096;      // samples; ~85 ms at 48 kHz, tracks down to ~A1
-export const MIN_DB = -55;       // ignore frames quieter than this
-export const MIN_CLARITY = 0.9;  // pitchy clarity, 0..1
+export const MIN_DB = -70;       // ignore frames quieter than this (loud singing was ~-60)
+export const MIN_CLARITY = 0.85; // pitchy clarity, 0..1
 export const STABLE_FRAMES = 3;  // same MIDI note this many frames in a row
 const MIN_HZ = 27.5;             // A0
 const MAX_HZ = 4200;             // ~C8

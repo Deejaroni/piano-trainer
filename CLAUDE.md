@@ -62,6 +62,9 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   (loud). Use this range when setting the note-onset threshold in detect.js.
 - v0.1.0 (Phase 1): js/detect.js wraps pitchy (4096 window, gate -55 dB,
   clarity 0.9, 3 stable frames, A0..C8). Big note readout + Hz, cents, clarity.
-- Known issues: icons are placeholders. Phase 1 not yet tested on the iPad.
+- v0.1.1: gate lowered to -70 dB, clarity 0.85. On iPad, loud held singing
+  only reached ~-60 dB, so -55 blocked nearly everything. Chords show no name
+  by design until chords.js.
+- Known issues: icons are placeholders. iPad mic input is very quiet.
 - Next: test detection across the range on the piano and tune the constants
   at the top of detect.js; then chords.js.
