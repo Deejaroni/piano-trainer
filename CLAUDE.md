@@ -54,5 +54,7 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
 - Vendor notes: pitchy imports ./fft.js (fft.js 4.0.4 wrapped as ESM). vexflow
   is the 5.0.0 Bravura-only build. tonejs-midi.js, vexflow.js, tone.js and
   opensheetmusicdisplay.min.js are UMD (load with classic script tags).
-- Known issues: icons are placeholders. Not yet tested on the iPad.
+- v0.0.2: meter range is now -80..-20 dB with a live dB readout. The raw iPad mic
+  (AGC off) is quiet, so the old -60..0 dB range only showed very loud sounds.
+- Known issues: icons are placeholders. Live on iPad (v0.0.1 confirmed working).
 - Next: Phase 1, pitch detection (detect.js) with a note readout.

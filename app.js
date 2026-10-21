@@ -31,8 +31,10 @@ async function start() {
       let sum = 0;
       for (const v of buf) sum += v * v;
       const db = 20 * Math.log10(Math.sqrt(sum / buf.length) || 1e-8);
-      const pct = Math.max(0, Math.min(100, ((db + 60) / 60) * 100)); // -60 dB .. 0 dB
+      // With AGC off the raw iPad mic is quiet; normal playing sits around -60..-30 dB.
+      const pct = Math.max(0, Math.min(100, ((db + 80) / 60) * 100)); // -80 dB .. -20 dB
       $('level').style.width = pct + '%';
+      $('status').textContent = `Listening (${ctx.sampleRate} Hz) · ${db.toFixed(0)} dB`;
       requestAnimationFrame(tick);
     };
     tick();
