@@ -90,6 +90,9 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   tempo map, repeats skipped); tap a note while paused to seek. App settings
   View: falling | sheet | both, Guide fade 100/60/30/0 % (notes + lit keys).
   MIDI songs are locked to falling notes with a note saying why.
+- v0.5.1: falling notes restyled: black field, solid glowing blocks (shadowBlur),
+  hue drifts over the song per hand (L 205->275 blue-violet, R 325->395
+  pink-orange), misses grey, glowing hit line with flares over lit keys.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD
