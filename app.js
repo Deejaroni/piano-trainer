@@ -2,6 +2,7 @@ import { startMic, audioContext, spectrumAnalyser, suspendAudio, loadSynth } fro
 import { createChordVerifier } from './js/chords.js';
 import { createFalling } from './js/falling.js';
 import { createPractice } from './js/practice.js';
+import { createNotation } from './js/notation.js';
 import { listSongs, putSong, deleteSong, exportAll, importAll } from './js/storage.js';
 import { importFile, applyHands } from './js/songs.js';
 import { loadAppSettings, saveAppSettings } from './js/settings.js';
@@ -228,6 +229,7 @@ $('headphones').addEventListener('click', async () => {
 const LOOK = 3; // real seconds of notes visible above the keyboard
 const fall = createFalling($('fall'));
 const prac = createPractice();
+const sheet = createNotation($('sheet'));
 let pSong = null, detector = null, chord = null, debug = false, raf = 0, lastTs = 0, shown = '';
 
 function loadPractice(song) {
@@ -253,9 +255,27 @@ function syncControls() {
   seg($('p-hands'), [['R', 'Right'], ['L', 'Left'], ['both', 'Both']], prac.hands, (v) => {
     prac.setHands(v); pSong.settings.hands = v; saveSong();
   });
+  seg($('p-view'), [['falling', 'Falling'], ['sheet', 'Sheet'], ['both', 'Both']], appSettings.view, (v) => {
+    appSettings.view = v; saveAppSettings(appSettings); syncView();
+  });
+  seg($('p-guide'), [100, 60, 30, 0].map((v) => [v, v + '%']), appSettings.guide, (v) => {
+    appSettings.guide = v; saveAppSettings(appSettings);
+  });
   $('p-tempo').value = Math.round(prac.speed * 100);
   $('p-tempo-val').textContent = $('p-tempo').value + '%';
   syncLoop();
+  syncView();
+}
+
+// MIDI has no notation, so those songs only get falling notes.
+function syncView() {
+  const midi = pSong.kind !== 'musicxml';
+  const v = midi ? 'falling' : appSettings.view;
+  $('p-view').style.display = midi ? 'none' : '';
+  $('p-viewnote').textContent = midi ? '· Falling notes only: MIDI files have no sheet music (import MusicXML for that).' : '';
+  $('fall').hidden = v === 'sheet';
+  $('sheet').hidden = v === 'falling';
+  if (v !== 'falling') sheet.setSong(pSong).catch((err) => { $('p-viewnote').textContent = '· Sheet music failed: ' + err.message; });
 }
 
 function syncLoop() {
@@ -310,13 +330,20 @@ $('fall').addEventListener('pointermove', (e) => {
   dragY = e.clientY;
 });
 for (const ev of ['pointerup', 'pointercancel']) $('fall').addEventListener(ev, () => { dragY = null; });
+// Tap a note on the sheet while paused to jump there.
+$('sheet').addEventListener('click', (e) => {
+  if (prac.playing) return;
+  const t = sheet.timeAt(e.clientX, e.clientY);
+  if (t != null) prac.seek(t);
+});
 
 function frame(ts) {
   const dt = Math.min(0.1, (ts - lastTs) / 1000);
   lastTs = ts;
   const { db, note } = detector ? detector.read() : { db: -100, note: null };
   prac.update(dt, note, db, chord);
-  fall.draw(prac.t, LOOK * prac.speed, note ? note.midi : null);
+  if (!$('fall').hidden) fall.draw(prac.t, LOOK * prac.speed, note ? note.midi : null, appSettings.guide / 100);
+  if (!$('sheet').hidden) sheet.update(prac.t);
   if (debug && chord) fall.drawDebug(chord.debug());
 
   // Touch the DOM only when the text changes.

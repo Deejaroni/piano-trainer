@@ -50,6 +50,8 @@
     #practice .bar { gap: 8px; }
     .tempo { display: inline-flex; align-items: center; gap: 8px; }
     .tempo input { width: 180px; }
+    #sheet { flex: 1; min-height: 0; width: 100%; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f7f5ef; border-radius: 12px; }
+    #sheet[hidden], #fall[hidden] { display: none; }
     #fall { flex: 1; min-height: 0; width: 100%; border-radius: 12px; touch-action: none; }
     .meter { width: min(80vw, 720px); height: 40px; background: var(--track); border-radius: 12px; overflow: hidden; }
     .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 50ms linear; }
@@ -84,9 +86,12 @@
       <span class="seg" id="p-hands"></span>
       <label class="tempo">Tempo <span id="p-tempo-val">100%</span><input id="p-tempo" type="range" min="25" max="100" step="5"></label>
       <span class="seg"><button id="p-a" class="small">A</button><button id="p-b" class="small">B</button><button id="p-loop" class="small" disabled>Loop</button></span>
+      <span class="seg" id="p-view"></span>
+      <span class="seg" id="p-guide"></span>
       <button id="p-debug" class="small">Debug</button>
     </div>
-    <div><b id="p-title"></b> <span id="p-score" class="muted">Pick a song in the Library.</span></div>
+    <div><b id="p-title"></b> <span id="p-score" class="muted">Pick a song in the Library.</span> <span id="p-viewnote" class="muted"></span></div>
+    <div id="sheet" hidden></div>
     <canvas id="fall"></canvas>
   </main>
   <main id="listen" hidden>

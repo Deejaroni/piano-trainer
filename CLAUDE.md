@@ -85,9 +85,14 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   notes must attack within 0.3 s. Single notes still use pitchy. App setting
   Chords: strict | relaxed (3+ note chords may miss one). Practice Debug button
   shows per-note confidence (amber = fresh attack).
+- v0.5.0 (Phase 5): js/notation.js renders MusicXML with OSMD (loaded lazily),
+  cursor follows the practice clock (OSMD whole notes -> seconds via the songs.js
+  tempo map, repeats skipped); tap a note while paused to seek. App settings
+  View: falling | sheet | both, Guide fade 100/60/30/0 % (notes + lit keys).
+  MIDI songs are locked to falling notes with a note saying why.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
-  Phases 3-4 tested only with simulated pitches / synthetic chords; thresholds
-  untested on iPad.
-- Next: test Practice + chords on iPad with the Debug overlay; tune ON_DB,
-  RISE_DB and Free play window.
+  Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD
+  speed on long scores untested on iPad. Sheet does not colour hits/misses.
+- Next: test Practice + chords + sheet view on iPad with the Debug overlay; tune
+  ON_DB, RISE_DB and Free play window.

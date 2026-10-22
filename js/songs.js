@@ -159,11 +159,7 @@ function parseMusicXML(text) {
     if (t.q === last.q) { last.bpm = t.bpm; continue; }
     map.push({ q: t.q, bpm: t.bpm, sec: last.sec + ((t.q - last.q) * 60) / last.bpm });
   }
-  const sec = (qq) => {
-    let i = map.length - 1;
-    while (i > 0 && map[i].q > qq) i--;
-    return map[i].sec + ((qq - map[i].q) * 60) / map[i].bpm;
-  };
+  const sec = (qq) => quarterSec(map, qq);
 
   // Track per part+staff. Staff 1 = right hand, staff 2 = left hand.
   const tracks = [];
@@ -189,7 +185,21 @@ function parseMusicXML(text) {
   else for (const t of open) t.guess = t.avg >= 60 ? 'R' : 'L';
   tracks.sort((a, b) => a.index - b.index);
   notes.sort(byTime);
-  return { title: title.trim(), tracks, notes };
+  return { title: title.trim(), tracks, notes, map };
+}
+
+function quarterSec(map, qq) {
+  let i = map.length - 1;
+  while (i > 0 && map[i].q > qq) i--;
+  return map[i].sec + ((qq - map[i].q) * 60) / map[i].bpm;
+}
+
+// Score text plus a quarter-note position -> song seconds map, for the notation view.
+export async function scoreOf(song) {
+  const buf = await song.file.arrayBuffer();
+  const xml = /\.mxl$/i.test(song.fileName) ? await unzipMxl(buf) : new TextDecoder().decode(buf);
+  const { map } = parseMusicXML(xml);
+  return { xml, sec: (q) => quarterSec(map, q) };
 }
 
 // ---------- .mxl (zip) ----------

@@ -52,7 +52,8 @@ export function createFalling(canvas) {
   }
 
   // t: song time at the keyboard line; look: song seconds visible; heard: detected midi or null.
-  function draw(t, look, heard) {
+  // guide: 0..1 opacity of the notes and lit keys (the keyboard and heard dot stay visible).
+  function draw(t, look, heard, guide = 1) {
     if (!W) return;
     const kbH = kbHeight(), top = H - kbH, pps = top / look;
     g.fillStyle = '#18181f';
@@ -67,8 +68,8 @@ export function createFalling(canvas) {
       if (!k || end < t) continue;
       const y0 = Math.max(0, top - (end - t) * pps), y1 = Math.min(top, top - (n.start - t) * pps);
       if (n.start <= t && n.on) lit.set(n.pitch, n);
-      if (y1 - y0 < 1) continue;
-      g.globalAlpha = n.on ? 1 : 0.3;
+      if (y1 - y0 < 1 || !guide) continue;
+      g.globalAlpha = (n.on ? 1 : 0.3) * guide;
       g.fillStyle = n.s === 'miss' ? MISS : COLORS[n.hand];
       g.beginPath();
       g.roundRect(k.x + 1, y0, k.w - 2, y1 - y0, 5);
@@ -83,8 +84,15 @@ export function createFalling(canvas) {
       for (const [m, k] of keys) {
         if (k.black !== black) continue;
         const n = lit.get(m);
-        g.fillStyle = n ? (n.s === 'miss' ? MISS : COLORS[n.hand]) : black ? '#111116' : '#e8e8ee';
-        g.fillRect(k.x + (black ? 0 : 0.5), top, k.w - (black ? 0 : 1), black ? kbH * 0.62 : kbH);
+        const x = k.x + (black ? 0 : 0.5), w = k.w - (black ? 0 : 1), h = black ? kbH * 0.62 : kbH;
+        g.fillStyle = black ? '#111116' : '#e8e8ee';
+        g.fillRect(x, top, w, h);
+        if (n && guide) {
+          g.globalAlpha = guide;
+          g.fillStyle = n.s === 'miss' ? MISS : COLORS[n.hand];
+          g.fillRect(x, top, w, h);
+          g.globalAlpha = 1;
+        }
       }
     }
     const hk = heard != null && keys.get(heard);
