@@ -99,6 +99,9 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   curl for wisps). Hue now ping-pongs every 12 song s (L 185<->285, R 310<->405).
 - v0.5.4: each smoke puff is coloured by the song time at its height (hueAt),
   so rising smoke matches the upcoming notes beside it.
+- v0.5.5: UI restyle (CSS only): near-black glass nav with gradient tab underline,
+  panel buttons, segmented groups with gradient-outlined selection, gradient
+  primary buttons and slider track (--grad matches the hit line).
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

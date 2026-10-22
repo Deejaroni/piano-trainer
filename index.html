@@ -6,55 +6,79 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#18181f">
+  <meta name="theme-color" content="#07070b">
   <title>Piano Trainer</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <style>
-    :root { --bg: #18181f; --fg: #f2f2f5; --muted: #8a8a99; --accent: #4ade80; --track: #2c2c38; }
+    /* Dark glass look to match the falling notes: --grad is the hit-line gradient (left hand -> right hand). */
+    :root { --bg: #07070b; --fg: #f2f2f7; --muted: #8b8b9c; --panel: rgba(255, 255, 255, .045); --line: rgba(255, 255, 255, .09);
+      --chip: #171720; --track: #1c1c26;
+      --grad: linear-gradient(90deg, hsl(190 95% 58%), hsl(270 95% 66%), hsl(325 95% 62%), hsl(32 95% 58%)); }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
-      font: 18px/1.4 -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none;
+      font: 17px/1.4 -apple-system, system-ui, sans-serif; -webkit-user-select: none; user-select: none;
       -webkit-tap-highlight-color: transparent; }
-    nav { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 8px; z-index: 2; background: var(--bg);
-      padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
-    nav button { font-size: 20px; padding: 12px 28px; min-height: 56px; background: var(--track); color: var(--fg); }
-    nav button.on { background: var(--accent); color: #0b0b10; }
+    nav { position: fixed; top: 0; left: 0; right: 0; display: flex; gap: 4px; z-index: 2;
+      background: rgba(7, 7, 11, .82); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line);
+      padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); }
+    nav button { position: relative; font-size: 18px; font-weight: 600; letter-spacing: .01em; padding: 10px 22px; min-height: 52px;
+      background: transparent; color: var(--muted); box-shadow: none; }
+    nav button.on { color: var(--fg); background: var(--panel); box-shadow: none; }
+    nav button.on::after { content: ''; position: absolute; left: 18px; right: 18px; bottom: 4px; height: 3px; border-radius: 2px; background: var(--grad); }
     main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 96px 24px 24px; }
     main[hidden] { display: none; }
     #library { justify-content: flex-start; align-items: stretch; gap: 12px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-    button { font: inherit; font-size: 28px; padding: 20px 56px; min-height: 72px; border: 0; border-radius: 16px;
-      background: var(--accent); color: #0b0b10; font-weight: 600; touch-action: manipulation; }
-    button:disabled { opacity: .5; }
-    .bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-    .btn, .small { font: inherit; font-weight: 600; border: 0; border-radius: 14px; touch-action: manipulation;
-      display: inline-flex; align-items: center; justify-content: center; background: var(--track); color: var(--fg); }
-    .btn { font-size: 20px; padding: 12px 24px; min-height: 56px; }
-    .small { font-size: 18px; padding: 8px 18px; min-height: 52px; min-width: 52px; }
-    .btn.primary, .small.on { background: var(--accent); color: #0b0b10; }
-    .small.danger { color: #f87171; }
-    .song { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 10px; background: #22222c; border-radius: 16px; }
+    button { font: inherit; font-size: 26px; padding: 18px 56px; min-height: 72px; border: 0; border-radius: 999px;
+      background: var(--grad); color: #0a0a10; font-weight: 700; touch-action: manipulation;
+      box-shadow: 0 0 28px rgba(190, 90, 255, .28); transition: transform .08s, opacity .15s; }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .4; }
+    .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .btn, .small { font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 14px; touch-action: manipulation;
+      display: inline-flex; align-items: center; justify-content: center; background: var(--panel); color: var(--fg); box-shadow: none; }
+    .btn { font-size: 17px; padding: 10px 22px; min-height: 52px; }
+    .small { font-size: 16px; padding: 6px 16px; min-height: 48px; min-width: 48px; }
+    .btn.primary { background: var(--grad); color: #0a0a10; border-color: transparent; box-shadow: 0 0 22px rgba(190, 90, 255, .3); }
+    /* Selected: dark chip with a gradient outline. */
+    .small.on { color: #fff; border: 1.5px solid transparent;
+      background: linear-gradient(var(--chip), var(--chip)) padding-box, var(--grad) border-box; }
+    .small.danger { color: #fb7185; }
+    .song { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 10px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 18px; }
     .song .info { flex: 1; min-width: 0; }
     .song .title { font-size: 22px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .muted { color: var(--muted); font-size: 16px; }
     #msg { min-height: 1.4em; }
-    dialog { background: #22222c; color: var(--fg); border: 0; border-radius: 20px; padding: 24px; width: min(92vw, 760px); max-height: 88vh; }
-    dialog::backdrop { background: rgba(0, 0, 0, .6); }
+    dialog { background: #101017; color: var(--fg); border: 1px solid var(--line); border-radius: 20px; padding: 24px; width: min(92vw, 760px); max-height: 88vh; }
+    dialog::backdrop { background: rgba(0, 0, 0, .65); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
     dialog h2 { margin: 0 0 8px; }
     .row { display: flex; align-items: center; gap: 12px; margin: 10px 0; flex-wrap: wrap; }
     .row > .label { flex: 1; min-width: 200px; }
-    .seg { display: inline-flex; gap: 6px; }
-    input[type=range] { width: 280px; height: 44px; }
+    /* Segmented group: one panel, options sit inside it. */
+    .seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+    .seg .small { border-color: transparent; background: transparent; color: var(--muted); min-height: 44px; }
+    .seg .small.on { color: #fff; border-color: transparent; background: linear-gradient(var(--chip), var(--chip)) padding-box, var(--grad) border-box; }
+    .seg .small:disabled { opacity: .35; }
+    #p-guide::before { content: 'Guide'; align-self: center; padding: 0 8px 0 11px; color: var(--muted); font-size: 16px; }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 280px; height: 44px; background: transparent; }
+    input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--grad); }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -11px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 0 5px rgba(255, 255, 255, .12), 0 2px 10px rgba(0, 0, 0, .6); }
+    input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--grad); }
+    input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: 0; border-radius: 50%; background: #fff; }
     #practice { justify-content: flex-start; align-items: stretch; gap: 8px;
       padding: 88px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
     #practice .bar { gap: 8px; }
-    .tempo { display: inline-flex; align-items: center; gap: 8px; }
+    .tempo { display: inline-flex; align-items: center; gap: 10px; padding: 0 14px; min-height: 52px; color: var(--muted); font-size: 16px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+    .tempo span { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; min-width: 3ch; }
     .tempo input { width: 180px; }
     #sheet { flex: 1; min-height: 0; width: 100%; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #f7f5ef; border-radius: 12px; }
     #sheet[hidden], #fall[hidden] { display: none; }
-    #fall { flex: 1; min-height: 0; width: 100%; border-radius: 12px; touch-action: none; }
-    .meter { width: min(80vw, 720px); height: 40px; background: var(--track); border-radius: 12px; overflow: hidden; }
-    .meter > div { height: 100%; width: 0; background: var(--accent); transition: width 50ms linear; }
+    #fall { flex: 1; min-height: 0; width: 100%; border-radius: 14px; touch-action: none; }
+    .meter { width: min(80vw, 720px); height: 14px; background: var(--track); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+    .meter > div { height: 100%; width: 0; background: var(--grad); background-size: min(80vw, 720px) 100%; transition: width 50ms linear; }
     #status { color: var(--muted); min-height: 1.4em; }
     #note { font-size: 140px; font-weight: 700; line-height: 1; min-height: 140px; font-variant-numeric: tabular-nums; }
     #detail { color: var(--muted); font-size: 22px; min-height: 1.4em; font-variant-numeric: tabular-nums; }
