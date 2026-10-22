@@ -77,8 +77,17 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   window -0.15/+0.3 s real time, A-B loop, other-hand accompaniment when
   Headphones on). Same pitch re-counts only after silence or a +6 dB rise.
   Drag canvas while paused to scrub. Auto-pauses and suspends audio in background.
+- v0.4.0 (Phase 4): js/chords.js verifies expected chords on a second analyser
+  (fftSize 16384, ~2.9 Hz bins; 8192 let E4 leak into F4). Presence = peak 12 dB
+  over the median of +-half an octave; fundamental only from C3 up (harmonics
+  collide in chords), h1-h3 below C3. Attack = rise of 6 dB over the loudest
+  level 0.3..0.08 s earlier (a min-based rule fired on beating partials). All
+  notes must attack within 0.3 s. Single notes still use pitchy. App setting
+  Chords: strict | relaxed (3+ note chords may miss one). Practice Debug button
+  shows per-note confidence (amber = fresh attack).
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
-  Phase 3 logic tested with simulated pitches only; mic timing untested on iPad.
-- Next: test Practice on iPad (60 fps, repeated notes, Free play window), then
-  chords.js (Phase 4).
+  Phases 3-4 tested only with simulated pitches / synthetic chords; thresholds
+  untested on iPad.
+- Next: test Practice + chords on iPad with the Debug overlay; tune ON_DB,
+  RISE_DB and Free play window.

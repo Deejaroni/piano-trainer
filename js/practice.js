@@ -11,7 +11,7 @@ export function createPractice() {
   let player = null, lastMidi = -1, armed = true, floorDb = 0;
 
   const p = {
-    t: 0, playing: false, done: false, wait: true, speed: 1, hands: 'both',
+    t: 0, playing: false, done: false, wait: true, speed: 1, hands: 'both', relaxed: true,
     loop: { a: null, b: null, on: false },
     get notes() { return notes; },
     get start() { return startT; },
@@ -37,8 +37,10 @@ export function createPractice() {
         n.on = h === 'both' || n.hand === h;
         if (!n.on) continue;
         const last = groups[groups.length - 1];
-        if (last && n.start - last.time < GROUP) { last.notes.push(n); last.pitch = Math.max(last.pitch, n.pitch); }
-        else groups.push({ time: n.start, pitch: n.pitch, notes: [n], s: null });
+        if (last && n.start - last.time < GROUP) {
+          last.notes.push(n);
+          if (!last.pitches.includes(n.pitch)) last.pitches.push(n.pitch);
+        } else groups.push({ time: n.start, pitches: [n.pitch], notes: [n], s: null });
       }
       startT = (groups.length ? groups[0].time : 0) - LEAD_IN;
       p.seek(p.t);
@@ -66,17 +68,29 @@ export function createPractice() {
       return { hits, misses, total: groups.length };
     },
 
-    // Call every frame. dt: real seconds; note/db: from detect.js read().
-    update(dt, note, db) {
+    // Call every frame. dt: real seconds; note/db: from detect.js read(); chord: chords.js verifier or null.
+    update(dt, note, db, chord) {
       if (!note || note.midi !== lastMidi || db > floorDb + REARM_DB) armed = true;
       floorDb = Math.min(floorDb, db);
-      if (!p.playing) return;
       const fresh = note && armed ? note.midi : -1;
+      // Single notes use pitchy; chords are verified against the spectrum.
+      const ok = (g) => (g.pitches.length > 1 ? !!chord && chord.match(g.pitches, p.relaxed) : fresh === g.pitches[0]);
+
+      if (chord) { // track the coming groups (also while paused, for the debug overlay)
+        const want = new Set();
+        const until = p.t + (EARLY + 0.5) * p.speed;
+        for (let j = gi; j < groups.length && (j < gi + 2 || groups[j].time <= until); j++) {
+          for (const m of groups[j].pitches) want.add(m);
+        }
+        chord.update(want);
+        chord.show(groups[gi] ? groups[gi].pitches : []);
+      }
+      if (!p.playing) return;
       let nt = p.t + dt * p.speed;
 
       if (p.wait) {
         const g = groups[gi];
-        if (g && fresh === g.pitch && nt >= g.time - EARLY * p.speed) { hit(g, db); gi++; }
+        if (g && nt >= g.time - EARLY * p.speed && ok(g)) { hit(g, db, chord); gi++; }
         else if (g && nt >= g.time) nt = Math.max(p.t, g.time); // hold until it is played
         p.t = nt;
       } else {
@@ -85,10 +99,8 @@ export function createPractice() {
           if (!groups[gi].s) mark(groups[gi], 'miss');
           gi++;
         }
-        if (fresh >= 0) {
-          for (let j = gi; j < groups.length && groups[j].time <= p.t + EARLY * p.speed; j++) {
-            if (!groups[j].s && groups[j].pitch === fresh) { hit(groups[j], db); break; }
-          }
+        for (let j = gi; j < groups.length && groups[j].time <= p.t + EARLY * p.speed; j++) {
+          if (!groups[j].s && ok(groups[j])) { hit(groups[j], db, chord); break; }
         }
       }
 
@@ -105,7 +117,11 @@ export function createPractice() {
   };
 
   function mark(g, s) { g.s = s; for (const n of g.notes) n.s = s; }
-  function hit(g, db) { mark(g, 'hit'); lastMidi = g.pitch; armed = false; floorDb = db; }
+  function hit(g, db, chord) {
+    mark(g, 'hit');
+    if (g.pitches.length > 1) { if (chord) chord.consume(g.pitches); return; }
+    lastMidi = g.pitches[0]; armed = false; floorDb = db;
+  }
 
   return p;
 }

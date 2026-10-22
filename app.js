@@ -1,4 +1,5 @@
-import { startMic, audioContext, suspendAudio, loadSynth } from './js/audio.js';
+import { startMic, audioContext, spectrumAnalyser, suspendAudio, loadSynth } from './js/audio.js';
+import { createChordVerifier } from './js/chords.js';
 import { createFalling } from './js/falling.js';
 import { createPractice } from './js/practice.js';
 import { listSongs, putSong, deleteSong, exportAll, importAll } from './js/storage.js';
@@ -208,7 +209,14 @@ let appSettings;
 async function initSettings() {
   appSettings = await loadAppSettings();
   $('headphones').textContent = 'Headphones: ' + (appSettings.headphones ? 'on' : 'off');
+  $('chords').textContent = 'Chords: ' + appSettings.chords;
+  prac.relaxed = appSettings.chords === 'relaxed';
 }
+$('chords').addEventListener('click', async () => {
+  appSettings.chords = appSettings.chords === 'strict' ? 'relaxed' : 'strict';
+  await saveAppSettings(appSettings);
+  initSettings();
+});
 $('headphones').addEventListener('click', async () => {
   appSettings.headphones = !appSettings.headphones;
   if (!appSettings.headphones) prac.setPlayer(null);
@@ -220,7 +228,7 @@ $('headphones').addEventListener('click', async () => {
 const LOOK = 3; // real seconds of notes visible above the keyboard
 const fall = createFalling($('fall'));
 const prac = createPractice();
-let pSong = null, detector = null, raf = 0, lastTs = 0, shown = '';
+let pSong = null, detector = null, chord = null, debug = false, raf = 0, lastTs = 0, shown = '';
 
 function loadPractice(song) {
   pSong = song;
@@ -279,11 +287,13 @@ $('p-loop').addEventListener('click', () => {
   syncLoop();
 });
 $('p-restart').addEventListener('click', () => prac.restart());
+$('p-debug').addEventListener('click', () => { debug = !debug; $('p-debug').classList.toggle('on', debug); });
 
 $('p-play').addEventListener('click', async () => {
   if (prac.playing) { prac.pause(); return; }
   try {
     detector = await startMic(); // inside the tap: creates/resumes audio
+    chord = chord || createChordVerifier(spectrumAnalyser(), audioContext().sampleRate);
     prac.setPlayer(appSettings.headphones ? await loadSynth() : null);
     prac.play();
   } catch (err) {
@@ -305,8 +315,9 @@ function frame(ts) {
   const dt = Math.min(0.1, (ts - lastTs) / 1000);
   lastTs = ts;
   const { db, note } = detector ? detector.read() : { db: -100, note: null };
-  prac.update(dt, note, db);
+  prac.update(dt, note, db, chord);
   fall.draw(prac.t, LOOK * prac.speed, note ? note.midi : null);
+  if (debug && chord) fall.drawDebug(chord.debug());
 
   // Touch the DOM only when the text changes.
   const { hits, misses, total } = prac.stats();

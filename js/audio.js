@@ -1,10 +1,12 @@
 // Shared AudioContext, mic detector and optional Tone.js synth.
 // startMic() and loadSynth() must be called from a tap handler (iOS).
 import { createDetector, WINDOW } from './detect.js';
+import { FFT } from './chords.js';
 
-let ctx = null, detector = null, pending = null;
+let ctx = null, detector = null, pending = null, spectrum = null;
 
 export const audioContext = () => ctx;
+export const spectrumAnalyser = () => spectrum; // set once startMic() resolves
 
 export function startMic() {
   // Create/resume synchronously, before any await, so iOS counts it as the tap.
@@ -18,7 +20,12 @@ export function startMic() {
     .then((stream) => {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = WINDOW;
-      ctx.createMediaStreamSource(stream).connect(analyser); // not connected to speakers
+      const src = ctx.createMediaStreamSource(stream);
+      src.connect(analyser); // not connected to speakers
+      spectrum = ctx.createAnalyser(); // finer bins for chord checks
+      spectrum.fftSize = FFT;
+      spectrum.smoothingTimeConstant = 0;
+      src.connect(spectrum);
       return (detector = createDetector(analyser, ctx.sampleRate));
     })
     .finally(() => { pending = null; });

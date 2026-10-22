@@ -71,6 +71,7 @@
       <button id="export" class="btn">Export backup</button>
       <label class="btn">Restore backup<input id="restore" type="file" accept=".json,application/json" hidden></label>
       <button id="headphones" class="btn">Headphones: off</button>
+      <button id="chords" class="btn">Chords: relaxed</button>
     </div>
     <div id="msg" class="muted"></div>
     <div id="songs"></div>
@@ -83,6 +84,7 @@
       <span class="seg" id="p-hands"></span>
       <label class="tempo">Tempo <span id="p-tempo-val">100%</span><input id="p-tempo" type="range" min="25" max="100" step="5"></label>
       <span class="seg"><button id="p-a" class="small">A</button><button id="p-b" class="small">B</button><button id="p-loop" class="small" disabled>Loop</button></span>
+      <button id="p-debug" class="small">Debug</button>
     </div>
     <div><b id="p-title"></b> <span id="p-score" class="muted">Pick a song in the Library.</span></div>
     <canvas id="fall"></canvas>

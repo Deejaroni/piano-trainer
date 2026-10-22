@@ -96,5 +96,23 @@ export function createFalling(canvas) {
     }
   }
 
-  return { setSong, draw, pxPerSec };
+  // Debug overlay: per expected note, name + confidence bar; amber = fresh attack seen.
+  function drawDebug(rows) {
+    const x = 12, w = 200, rh = 26;
+    g.fillStyle = 'rgba(0,0,0,.7)';
+    g.fillRect(x - 6, 6, w + 12, rows.length * rh + 12);
+    g.font = '600 16px -apple-system, system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    rows.forEach((r, i) => {
+      const y = 12 + i * rh;
+      g.fillStyle = r.fresh ? '#f59e0b' : '#f2f2f5';
+      g.fillText(r.name, x, y + rh / 2 - 2);
+      g.fillStyle = '#2c2c38';
+      g.fillRect(x + 50, y + 4, w - 50, rh - 12);
+      g.fillStyle = r.conf >= 0.5 ? '#4ade80' : '#8a8a99'; // 0.5 = presence threshold
+      g.fillRect(x + 50, y + 4, (w - 50) * r.conf, rh - 12);
+    });
+  }
+
+  return { setSong, draw, drawDebug, pxPerSec };
 }

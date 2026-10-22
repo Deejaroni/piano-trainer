@@ -1,7 +1,8 @@
 // App settings (kv store) and per-song setting defaults.
 import { getKV, setKV } from './storage.js';
 
-const APP_DEFAULTS = { headphones: false };
+// chords: 'strict' (every note) | 'relaxed' (3+ note chords may miss one).
+const APP_DEFAULTS = { headphones: false, chords: 'relaxed' };
 
 // tempo: % of written speed. hands: 'both' | 'R' | 'L'. wait: pause until the right note is heard.
 export const defaultSongSettings = () => ({ tempo: 100, hands: 'both', wait: true });
