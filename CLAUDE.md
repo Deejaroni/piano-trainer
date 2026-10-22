@@ -93,6 +93,8 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
 - v0.5.1: falling notes restyled: black field, solid glowing blocks (shadowBlur),
   hue drifts over the song per hand (L 205->275 blue-violet, R 325->395
   pink-orange), misses grey, glowing hit line with flares over lit keys.
+- v0.5.2: glow replaced by smoke: additive puff particles (cached sprite per 10
+  degrees of hue, max 700) rise and curl from sounding keys behind the blocks.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

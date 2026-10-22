@@ -7,10 +7,31 @@ const HUES = { L: [205, 275], R: [325, 395] };
 const MISS = '#5b5b66';
 const hsl = (h, l, a = 1) => `hsla(${h % 360}, 95%, ${l}%, ${a})`;
 
+// Smoke: soft puffs rise and curl from keys that are sounding. One cached sprite per 10 degrees of hue.
+const MAX_PUFFS = 700;
+const sprites = new Map();
+function puffSprite(hue) {
+  const key = Math.round(hue / 10) % 36;
+  let c = sprites.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const sg = c.getContext('2d'), gr = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, hsl(key * 10, 72, 0.9));
+    gr.addColorStop(0.4, hsl(key * 10, 62, 0.35));
+    gr.addColorStop(1, hsl(key * 10, 50, 0));
+    sg.fillStyle = gr;
+    sg.fillRect(0, 0, 64, 64);
+    sprites.set(key, c);
+  }
+  return c;
+}
+
 export function createFalling(canvas) {
   const g = canvas.getContext('2d');
   const keys = new Map(); // midi -> { x, w, black }
   let notes = [], maxDur = 0, lo = 48, hi = 72, W = 0, H = 0;
+  let puffs = [], lastNow = 0, prevLit = new Map();
 
   function layout() {
     const dpr = window.devicePixelRatio || 1;
@@ -68,6 +89,7 @@ export function createFalling(canvas) {
     g.fillStyle = '#15151d';
     for (const [m, k] of keys) if (m % 12 === 0) g.fillRect(k.x, 0, 1, top); // C guide lines
 
+    smoke(prevLit, top, guide); // behind the blocks; last frame's lit keys are close enough
     const lit = new Map();
     for (let i = firstAt(t - maxDur); i < notes.length && notes[i].start < t + look; i++) {
       const n = notes[i], k = keys.get(n.pitch);
@@ -76,16 +98,13 @@ export function createFalling(canvas) {
       const y0 = Math.max(0, top - (end - t) * pps), y1 = Math.min(top, top - (n.start - t) * pps);
       if (n.start <= t && n.on) lit.set(n.pitch, n);
       if (y1 - y0 < 1 || !guide) continue;
-      // Solid glowing block: soft halo, then the body, then a bright edge.
+      // Solid block with a bright edge.
       const miss = n.s === 'miss';
       g.globalAlpha = (n.on ? 1 : 0.3) * guide;
-      g.shadowColor = miss ? 'transparent' : hsl(n.hue, 60);
-      g.shadowBlur = n.on ? 14 : 0;
       g.fillStyle = miss ? MISS : hsl(n.hue, n.s === 'hit' ? 68 : 55);
       g.beginPath();
       g.roundRect(k.x + 1.5, y0, k.w - 3, y1 - y0, 4);
       g.fill();
-      g.shadowBlur = 0;
       g.strokeStyle = miss ? '#7a7a85' : n.s === 'hit' ? '#ffffff' : hsl(n.hue, 78);
       g.lineWidth = n.s === 'hit' ? 2 : 1;
       g.stroke();
@@ -108,28 +127,14 @@ export function createFalling(canvas) {
       }
     }
 
-    // Glowing hit line, coloured by whatever is sounding, with a flare above lit keys.
+    // Hit line in the hands' colours.
     const line = g.createLinearGradient(0, 0, W, 0);
     line.addColorStop(0, hsl(HUES.L[0], 65));
     line.addColorStop(0.5, hsl(300, 65));
     line.addColorStop(1, hsl(HUES.R[1], 65));
     g.fillStyle = line;
-    g.shadowColor = hsl(300, 60);
-    g.shadowBlur = 10;
     g.fillRect(0, top - 3, W, 3);
-    g.shadowBlur = 0;
-    if (guide) {
-      g.globalCompositeOperation = 'lighter';
-      for (const [m, n] of lit) {
-        const k = keys.get(m), cx = k.x + k.w / 2, r = Math.max(k.w * 1.6, 24);
-        const fl = g.createRadialGradient(cx, top, 0, cx, top, r);
-        fl.addColorStop(0, hsl(n.hue, 70, 0.9 * guide));
-        fl.addColorStop(1, hsl(n.hue, 50, 0));
-        g.fillStyle = fl;
-        g.fillRect(cx - r, top - r, r * 2, r * 1.3);
-      }
-      g.globalCompositeOperation = 'source-over';
-    }
+    prevLit = lit;
     const hk = heard != null && keys.get(heard);
     if (hk) { // what the mic hears
       g.fillStyle = '#f59e0b';
@@ -137,6 +142,40 @@ export function createFalling(canvas) {
       g.arc(hk.x + hk.w / 2, top + (hk.black ? kbH * 0.5 : kbH * 0.85), Math.min(10, hk.w * 0.3), 0, 7);
       g.fill();
     }
+  }
+
+  // Emit puffs from each lit key, then drift, curl, grow and fade them. Additive, so overlaps brighten.
+  function smoke(lit, top, guide) {
+    const now = performance.now() / 1000, dt = Math.min(0.1, now - (lastNow || now));
+    lastNow = now;
+    for (const [m, n] of lit) {
+      if (n.s === 'miss' || !guide) continue;
+      const k = keys.get(m);
+      const rate = dt * 50; // puffs per key per second
+      for (let c = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0); c > 0; c--) {
+        if (puffs.length >= MAX_PUFFS) puffs.shift();
+        puffs.push({ x: k.x + k.w * (0.25 + Math.random() * 0.5), y: top - 2, vx: (Math.random() - 0.5) * 30,
+          vy: -90 - Math.random() * 60, r: k.w * 0.25, age: 0, life: 2 + Math.random() * 1.5, seed: Math.random() * 6.3,
+          hue: n.hue + (Math.random() - 0.5) * 16 });
+      }
+    }
+    g.globalCompositeOperation = 'lighter';
+    let j = 0;
+    for (const p of puffs) {
+      p.age += dt;
+      if (p.age >= p.life) continue;
+      p.vx += Math.sin(p.age * 2.2 + p.seed) * 70 * dt; // curl
+      p.vy *= 1 - 0.25 * dt; // slow as it rises
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.r += 14 * dt;
+      g.globalAlpha = 0.26 * guide * (1 - p.age / p.life) ** 1.5;
+      g.drawImage(puffSprite(p.hue), p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+      puffs[j++] = p;
+    }
+    puffs.length = j;
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
   }
 
   // Debug overlay: per expected note, name + confidence bar; amber = fresh attack seen.
