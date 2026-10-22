@@ -2,13 +2,14 @@
 // Notes need { pitch, start, dur, hand, on (hand being practiced), s: null|'hit'|'miss' }.
 const BLACK = new Set([1, 3, 6, 8, 10]);
 const isBlack = (m) => BLACK.has(m % 12);
-// Each hand's hue drifts across the song: left blue -> violet, right pink -> orange.
-const HUES = { L: [205, 275], R: [325, 395] };
+// Each hand's hue sweeps back and forth every CYCLE song seconds: left cyan <-> violet, right magenta <-> amber.
+const HUES = { L: [185, 285], R: [310, 405] };
+const CYCLE = 12;
 const MISS = '#5b5b66';
 const hsl = (h, l, a = 1) => `hsla(${h % 360}, 95%, ${l}%, ${a})`;
 
 // Smoke: soft puffs rise and curl from keys that are sounding. One cached sprite per 10 degrees of hue.
-const MAX_PUFFS = 700;
+const MAX_PUFFS = 1200;
 const sprites = new Map();
 function puffSprite(hue) {
   const key = Math.round(hue / 10) % 36;
@@ -65,10 +66,11 @@ export function createFalling(canvas) {
   function setSong(ns) {
     notes = ns;
     maxDur = Math.max(0, ...ns.map((n) => n.dur));
-    const t0 = ns.length ? ns[0].start : 0, span = Math.max(1, ...ns.map((n) => n.start - t0));
+    const t0 = ns.length ? ns[0].start : 0;
     for (const n of ns) {
       const [a, b] = HUES[n.hand] || HUES.R;
-      n.hue = a + ((b - a) * (n.start - t0)) / span;
+      const ph = ((n.start - t0) / CYCLE) % 1; // 0..1, then a triangle wave so it loops smoothly
+      n.hue = a + (b - a) * (ph < 0.5 ? ph * 2 : 2 - ph * 2);
     }
     const ps = ns.map((n) => n.pitch);
     lo = Math.max(21, Math.min(...ps, 60) - 2);
@@ -151,11 +153,11 @@ export function createFalling(canvas) {
     for (const [m, n] of lit) {
       if (n.s === 'miss' || !guide) continue;
       const k = keys.get(m);
-      const rate = dt * 50; // puffs per key per second
+      const rate = dt * 80; // puffs per key per second
       for (let c = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0); c > 0; c--) {
         if (puffs.length >= MAX_PUFFS) puffs.shift();
         puffs.push({ x: k.x + k.w * (0.25 + Math.random() * 0.5), y: top - 2, vx: (Math.random() - 0.5) * 30,
-          vy: -90 - Math.random() * 60, r: k.w * 0.25, age: 0, life: 2 + Math.random() * 1.5, seed: Math.random() * 6.3,
+          vy: -100 - Math.random() * 70, r: k.w * 0.2, age: 0, life: 2.5 + Math.random() * 1.5, seed: Math.random() * 6.3,
           hue: n.hue + (Math.random() - 0.5) * 16 });
       }
     }
@@ -164,12 +166,13 @@ export function createFalling(canvas) {
     for (const p of puffs) {
       p.age += dt;
       if (p.age >= p.life) continue;
-      p.vx += Math.sin(p.age * 2.2 + p.seed) * 70 * dt; // curl
+      // Curl from a shared flow field, so neighbouring puffs move together into wisps.
+      p.vx += (Math.sin(p.y * 0.025 + now * 1.5 + p.seed * 0.5) * 110 - p.vx * 0.8) * dt;
       p.vy *= 1 - 0.25 * dt; // slow as it rises
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.r += 14 * dt;
-      g.globalAlpha = 0.26 * guide * (1 - p.age / p.life) ** 1.5;
+      p.r += 10 * dt;
+      g.globalAlpha = 0.42 * guide * (1 - p.age / p.life) ** 1.3;
       g.drawImage(puffSprite(p.hue), p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
       puffs[j++] = p;
     }
