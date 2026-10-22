@@ -97,6 +97,8 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   degrees of hue, max 700) rise and curl from sounding keys behind the blocks.
 - v0.5.3: denser, brighter smoke (80 puffs/s per key, max 1200, shared flow-field
   curl for wisps). Hue now ping-pongs every 12 song s (L 185<->285, R 310<->405).
+- v0.5.4: each smoke puff is coloured by the song time at its height (hueAt),
+  so rising smoke matches the upcoming notes beside it.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

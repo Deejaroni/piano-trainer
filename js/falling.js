@@ -8,11 +8,12 @@ const CYCLE = 12;
 const MISS = '#5b5b66';
 const hsl = (h, l, a = 1) => `hsla(${h % 360}, 95%, ${l}%, ${a})`;
 
-// Smoke: soft puffs rise and curl from keys that are sounding. One cached sprite per 10 degrees of hue.
+// Smoke: soft puffs rise and curl from keys that are sounding. One cached sprite per 10 degrees of hue
+// (hue may be negative or past 360 after jitter, so wrap it).
 const MAX_PUFFS = 1200;
 const sprites = new Map();
 function puffSprite(hue) {
-  const key = Math.round(hue / 10) % 36;
+  const key = ((Math.round(hue / 10) % 36) + 36) % 36;
   let c = sprites.get(key);
   if (!c) {
     c = document.createElement('canvas');
@@ -32,7 +33,14 @@ export function createFalling(canvas) {
   const g = canvas.getContext('2d');
   const keys = new Map(); // midi -> { x, w, black }
   let notes = [], maxDur = 0, lo = 48, hi = 72, W = 0, H = 0;
-  let puffs = [], lastNow = 0, prevLit = new Map();
+  let puffs = [], lastNow = 0, prevLit = new Map(), t0 = 0;
+
+  // Hand colour at song time `time`: a triangle wave over CYCLE seconds, so it loops smoothly.
+  function hueAt(hand, time) {
+    const [a, b] = HUES[hand] || HUES.R;
+    const ph = ((((time - t0) / CYCLE) % 1) + 1) % 1;
+    return a + (b - a) * (ph < 0.5 ? ph * 2 : 2 - ph * 2);
+  }
 
   function layout() {
     const dpr = window.devicePixelRatio || 1;
@@ -66,12 +74,8 @@ export function createFalling(canvas) {
   function setSong(ns) {
     notes = ns;
     maxDur = Math.max(0, ...ns.map((n) => n.dur));
-    const t0 = ns.length ? ns[0].start : 0;
-    for (const n of ns) {
-      const [a, b] = HUES[n.hand] || HUES.R;
-      const ph = ((n.start - t0) / CYCLE) % 1; // 0..1, then a triangle wave so it loops smoothly
-      n.hue = a + (b - a) * (ph < 0.5 ? ph * 2 : 2 - ph * 2);
-    }
+    t0 = ns.length ? ns[0].start : 0;
+    for (const n of ns) n.hue = hueAt(n.hand, n.start);
     const ps = ns.map((n) => n.pitch);
     lo = Math.max(21, Math.min(...ps, 60) - 2);
     hi = Math.min(108, Math.max(...ps, 60) + 2);
@@ -91,7 +95,7 @@ export function createFalling(canvas) {
     g.fillStyle = '#15151d';
     for (const [m, k] of keys) if (m % 12 === 0) g.fillRect(k.x, 0, 1, top); // C guide lines
 
-    smoke(prevLit, top, guide); // behind the blocks; last frame's lit keys are close enough
+    smoke(prevLit, top, guide, t, pps); // behind the blocks; last frame's lit keys are close enough
     const lit = new Map();
     for (let i = firstAt(t - maxDur); i < notes.length && notes[i].start < t + look; i++) {
       const n = notes[i], k = keys.get(n.pitch);
@@ -147,7 +151,8 @@ export function createFalling(canvas) {
   }
 
   // Emit puffs from each lit key, then drift, curl, grow and fade them. Additive, so overlaps brighten.
-  function smoke(lit, top, guide) {
+  // A puff takes the colour of the notes level with it (song time at its height), not of the note that made it.
+  function smoke(lit, top, guide, t, pps) {
     const now = performance.now() / 1000, dt = Math.min(0.1, now - (lastNow || now));
     lastNow = now;
     for (const [m, n] of lit) {
@@ -158,7 +163,7 @@ export function createFalling(canvas) {
         if (puffs.length >= MAX_PUFFS) puffs.shift();
         puffs.push({ x: k.x + k.w * (0.25 + Math.random() * 0.5), y: top - 2, vx: (Math.random() - 0.5) * 30,
           vy: -100 - Math.random() * 70, r: k.w * 0.2, age: 0, life: 2.5 + Math.random() * 1.5, seed: Math.random() * 6.3,
-          hue: n.hue + (Math.random() - 0.5) * 16 });
+          hand: n.hand, dh: (Math.random() - 0.5) * 16 });
       }
     }
     g.globalCompositeOperation = 'lighter';
@@ -173,7 +178,7 @@ export function createFalling(canvas) {
       p.y += p.vy * dt;
       p.r += 10 * dt;
       g.globalAlpha = 0.42 * guide * (1 - p.age / p.life) ** 1.3;
-      g.drawImage(puffSprite(p.hue), p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+      g.drawImage(puffSprite(hueAt(p.hand, t + (top - p.y) / pps) + p.dh), p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
       puffs[j++] = p;
     }
     puffs.length = j;
