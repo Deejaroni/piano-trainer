@@ -134,6 +134,9 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   silent mode and/or the open mic (play-and-record ducks the speaker). Listen
   now stops the mic tracks and sets navigator.audioSession.type = 'playback';
   startMic sets 'play-and-record' and re-acquires.
+- v0.7.4: synth voice piano-like (was a thin triangle): FMSynth harmonicity 2,
+  index 3, modulator decays in 0.35 s (hammer), amp decay 1.6 s, low-pass
+  2.6 kHz. Real piano samples (Salamander) were offered and declined.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

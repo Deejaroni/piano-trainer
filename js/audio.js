@@ -84,7 +84,7 @@ export function click(down) {
 let tonePromise = null, synth = null;
 
 const play = (midi, dur) =>
-  synth.triggerAttackRelease(Tone.Frequency(midi, 'midi').toFrequency(), Math.max(0.05, dur));
+  synth.triggerAttackRelease(Tone.Frequency(midi, 'midi').toFrequency(), Math.max(0.05, dur), undefined, 0.7);
 
 // Loads vendor/tone.js on first use; resolves to play(midi, durSeconds).
 export function loadSynth() {
@@ -97,11 +97,18 @@ export function loadSynth() {
   }).then(() => {
     Tone.setContext(ctx);
     Tone.getContext().lookAhead = 0; // play on the frame the note arrives
-    synth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'triangle' },
-      envelope: { attack: 0.005, decay: 0.3, sustain: 0.2, release: 0.8 },
-    }).toDestination();
-    synth.volume.value = -8;
+    // Piano-like voice: FM with a fast-decaying modulator gives a bright hammer attack
+    // that mellows as the note dies away; the low-pass takes the edge off the top.
+    const tone = new Tone.Filter({ type: 'lowpass', frequency: 2600, rolloff: -12 }).toDestination();
+    synth = new Tone.PolySynth(Tone.FMSynth, {
+      harmonicity: 2,
+      modulationIndex: 3,
+      oscillator: { type: 'sine' },
+      modulation: { type: 'sine' },
+      envelope: { attack: 0.002, decay: 1.6, sustain: 0.06, release: 1.0 },
+      modulationEnvelope: { attack: 0.002, decay: 0.35, sustain: 0, release: 0.4 },
+    }).connect(tone);
+    synth.volume.value = -4;
     return play;
   });
   return tonePromise;

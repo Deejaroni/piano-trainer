@@ -1,4 +1,4 @@
-const VERSION = '0.7.3';
+const VERSION = '0.7.4';
 const CACHE = `piano-trainer-${VERSION}`;
 
 const ASSETS = [
