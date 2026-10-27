@@ -3,30 +3,42 @@
 import { createDetector, WINDOW } from './detect.js';
 import { FFT } from './chords.js';
 
-let ctx = null, detector = null, pending = null, spectrum = null;
+let ctx = null, detector = null, pending = null, spectrum = null, analyser = null, src = null, stream = null;
 
 export const audioContext = () => ctx;
 export const spectrumAnalyser = () => spectrum; // set once startMic() resolves
 
+// iOS ends or mutes the mic track when the app is covered (Files picker, background).
+// The old stream then reads silence, so every tap checks it and reconnects if needed.
+const micLive = () => !!stream && stream.getAudioTracks().some((t) => t.readyState === 'live' && !t.muted);
+
 export function startMic() {
   // Create/resume synchronously, before any await, so iOS counts it as the tap.
   ctx = ctx || new AudioContext();
-  const resumed = ctx.state === 'running' ? Promise.resolve() : ctx.resume();
-  if (detector) return resumed.then(() => detector);
+  // An 'interrupted' iOS context may never settle resume(), so don't wait on it forever.
+  const resumed = ctx.state === 'running' ? Promise.resolve()
+    : Promise.race([ctx.resume(), new Promise((r) => setTimeout(r, 1000))]);
+  if (detector && micLive()) return resumed.then(() => detector);
   pending = pending || resumed
     .then(() => navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     }))
-    .then((stream) => {
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = WINDOW;
-      const src = ctx.createMediaStreamSource(stream);
+    .then((s) => {
+      if (src) src.disconnect();
+      if (stream) for (const t of stream.getTracks()) t.stop();
+      stream = s;
+      if (!analyser) { // analysers live as long as the context, so detectors survive a reconnect
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = WINDOW;
+        spectrum = ctx.createAnalyser(); // finer bins for chord checks
+        spectrum.fftSize = FFT;
+        spectrum.smoothingTimeConstant = 0;
+        detector = createDetector(analyser, ctx.sampleRate);
+      }
+      src = ctx.createMediaStreamSource(s);
       src.connect(analyser); // not connected to speakers
-      spectrum = ctx.createAnalyser(); // finer bins for chord checks
-      spectrum.fftSize = FFT;
-      spectrum.smoothingTimeConstant = 0;
       src.connect(spectrum);
-      return (detector = createDetector(analyser, ctx.sampleRate));
+      return detector;
     })
     .finally(() => { pending = null; });
   return pending;

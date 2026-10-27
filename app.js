@@ -232,7 +232,7 @@ const LOOK = 3; // real seconds of notes visible above the keyboard
 const fall = createFalling($('fall'));
 const prac = createPractice();
 const sheet = createNotation($('sheet'));
-let pSong = null, detector = null, chord = null, debug = false, raf = 0, lastTs = 0, shown = '', beatN = 0;
+let pSong = null, detector = null, chord = null, debug = false, raf = 0, lastTs = 0, shown = '', beatN = 0, micShown = '';
 const SPEEDS = [10, 25, 50, 75, 100]; // percent of written tempo
 const snapTempo = (t) => SPEEDS.reduce((a, b) => (Math.abs(b - t) < Math.abs(a - t) ? b : a));
 
@@ -370,6 +370,9 @@ function frame(ts) {
   const { db, note } = detector ? detector.read() : { db: -100, note: null };
   prac.update(dt, note, db, chord);
   if (prac.playing) addTime(dt);
+  // Mic level, -80..-20 dB, so it's visible whether the mic is live.
+  const lvl = Math.round(Math.max(0, Math.min(1, (db + 80) / 60)) * 20) * 5 + '%';
+  if (lvl !== micShown) $('p-mic').style.width = micShown = lvl;
   if (prac.beat.n !== beatN) {
     beatN = prac.beat.n;
     if (appSettings.metro) {

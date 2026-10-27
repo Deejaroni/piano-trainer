@@ -121,6 +121,11 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   pulses, click only with Headphones). js/stats.js (kv 'stats'): seconds per
   day, per-song runs/best %/100 % (Free play, every note hit)/fastest 100 %,
   drill totals. Stats tab: session/today/all-time/streak, 14-day chart, songs.
+- v0.7.1: iPad: Practice heard nothing (likely iOS ending the mic track when the
+  Files picker or background covers the app; the old stream read silence).
+  startMic() now re-acquires the mic on every tap if the track is ended/muted,
+  reconnecting into the same analysers; resume() waits max 1 s ('interrupted').
+  Practice bar has a mic level meter.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

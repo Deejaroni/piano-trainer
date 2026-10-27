@@ -91,6 +91,8 @@
     #d-hint:empty { display: none; }
     #d-hint svg { max-width: 100%; height: auto; }
     .d-name { font-size: 34px; font-weight: 700; }
+    .mic { width: 60px; height: 10px; align-self: center; background: var(--track); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+    .mic i { display: block; height: 100%; width: 0; background: var(--grad); }
     .beat { align-self: center; width: 18px; height: 18px; margin: 0 10px 0 4px; border-radius: 50%; background: var(--track); }
     .beat.on { background: #fff; box-shadow: 0 0 14px #fff; }
     .beat.down { background: var(--grad); box-shadow: 0 0 18px rgba(255, 120, 200, .8); }
@@ -130,6 +132,7 @@
   <main id="practice" hidden>
     <div class="bar">
       <button id="p-play" class="btn primary" disabled>Play</button>
+      <span class="mic" title="Mic level"><i id="p-mic"></i></span>
       <button id="p-restart" class="btn">Restart</button>
       <span class="seg" id="p-mode"></span>
       <span class="seg" id="p-hands"></span>
