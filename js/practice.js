@@ -1,5 +1,5 @@
 // Practice engine: song clock, Wait / Free play judging, A-B loop, accompaniment.
-// Times are song seconds; speed is the tempo fraction (0.25..1).
+// Times are song seconds; speed is the tempo fraction (0.1..1).
 const GROUP = 0.03;    // notes starting within 30 ms form one chord
 const EARLY = 0.15;    // real seconds a note may be played before it arrives
 const LATE = 0.3;      // Free play: real seconds after a note before it is a miss
@@ -9,10 +9,13 @@ const REARM_DB = 6;    // a repeated pitch counts again after a rise this large
 export function createPractice() {
   let notes = [], groups = [], gi = 0, playIdx = 0, duration = 0, startT = -LEAD_IN;
   let player = null, lastMidi = -1, armed = true, floorDb = 0;
+  let beats = [], bi = 0, fromStart = false;
 
   const p = {
     t: 0, playing: false, done: false, wait: true, speed: 1, hands: 'both', relaxed: true,
     loop: { a: null, b: null, on: false },
+    beat: { n: 0, down: false }, // n counts beats passed while playing (metronome)
+    onRun: null, // ({ loop, hits, misses, total }) after a full run from the start or a loop pass
     get notes() { return notes; },
     get start() { return startT; },
     get end() { return duration; },
@@ -24,6 +27,7 @@ export function createPractice() {
       duration = notes.length ? Math.max(...notes.map((n) => n.start + n.dur)) : 0;
       p.wait = song.settings.wait;
       p.speed = Math.min(1, song.settings.tempo / 100);
+      beats = [];
       p.loop = { a: null, b: null, on: false };
       p.playing = false;
       p.setHands(song.settings.hands);
@@ -55,7 +59,12 @@ export function createPractice() {
       for (let i = gi; i < groups.length; i++) mark(groups[i], null);
       playIdx = notes.findIndex((n) => n.start >= p.t);
       if (playIdx < 0) playIdx = notes.length;
+      bi = beats.findIndex((b) => b.t >= p.t);
+      if (bi < 0) bi = beats.length;
+      fromStart = gi === 0;
     },
+
+    setBeats(b) { beats = b; bi = beats.findIndex((x) => x.t >= p.t); if (bi < 0) bi = beats.length; },
 
     restart() { p.seek(p.loop.on ? p.loop.a : startT); },
     play() { if (p.done) p.restart(); p.playing = true; },
@@ -109,12 +118,21 @@ export function createPractice() {
         const n = notes[playIdx++];
         if (!n.on && player) player(n.pitch, n.dur / p.speed);
       }
+      while (bi < beats.length && beats[bi].t <= p.t) p.beat = { n: p.beat.n + 1, down: beats[bi++].down };
 
       const { a, b, on } = p.loop;
-      if (on && p.t >= b) p.seek(a);
-      else if (p.t >= duration + 0.5) { p.playing = false; p.done = true; }
+      if (on && p.t >= b) { pass(true); p.seek(a); }
+      else if (p.t >= duration + 0.5) { p.playing = false; p.done = true; pass(false); }
     },
   };
+
+  function pass(loop) {
+    if (!p.onRun || (!loop && !fromStart)) return;
+    const gs = loop ? groups.filter((g) => g.time >= p.loop.a && g.time < p.loop.b) : groups;
+    let hits = 0, misses = 0;
+    for (const g of gs) { if (g.s === 'hit') hits++; else if (g.s === 'miss') misses++; }
+    p.onRun({ loop, hits, misses, total: gs.length });
+  }
 
   function mark(g, s) { g.s = s; for (const n of g.notes) n.s = s; }
   function hit(g, db, chord) {

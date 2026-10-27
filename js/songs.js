@@ -92,6 +92,7 @@ function parseMusicXML(text) {
 
   const tempos = []; // { q: quarter position, bpm }
   const raw = []; // notes in quarters: { pitch, q, len, part, staff }
+  const measures = []; // first part only: { q, len (quarters), beats, beatType }
   const parts = kids(root, 'part');
   const staffCount = [];
 
@@ -99,6 +100,7 @@ function parseMusicXML(text) {
     let divisions = 1;
     let mStart = 0; // measure start, quarters
     let staves = 1;
+    let beats = 4, beatType = 4;
     const open = new Map(); // tie key -> note awaiting continuation
     for (const m of kids(part, 'measure')) {
       let pos = 0; // divisions from measure start
@@ -110,6 +112,7 @@ function parseMusicXML(text) {
           case 'attributes':
             divisions = num(el, 'divisions', divisions) || divisions;
             staves = Math.max(staves, num(el, 'staves', 1));
+            if (kid(el, 'time')) { beats = num(kid(el, 'time'), 'beats', beats) || beats; beatType = num(kid(el, 'time'), 'beat-type', beatType) || beatType; }
             break;
           case 'backup': pos -= num(el, 'duration'); break;
           case 'forward': pos += num(el, 'duration'); break;
@@ -146,6 +149,7 @@ function parseMusicXML(text) {
         }
         maxPos = Math.max(maxPos, pos);
       }
+      if (pi === 0) measures.push({ q: mStart, len: maxPos / divisions, beats, beatType });
       mStart += maxPos / divisions;
     }
     staffCount[pi] = staves;
@@ -185,7 +189,7 @@ function parseMusicXML(text) {
   else for (const t of open) t.guess = t.avg >= 60 ? 'R' : 'L';
   tracks.sort((a, b) => a.index - b.index);
   notes.sort(byTime);
-  return { title: title.trim(), tracks, notes, map };
+  return { title: title.trim(), tracks, notes, map, measures };
 }
 
 function quarterSec(map, qq) {
@@ -200,6 +204,32 @@ export async function scoreOf(song) {
   const xml = /\.mxl$/i.test(song.fileName) ? await unzipMxl(buf) : new TextDecoder().decode(buf);
   const { map } = parseMusicXML(xml);
   return { xml, sec: (q) => quarterSec(map, q) };
+}
+
+// Metronome beats in song seconds: [{ t, down }], down = first beat of a bar.
+// Read from the stored file, so songs imported before the metronome work too.
+export async function beatsOf(song) {
+  const buf = await song.file.arrayBuffer();
+  const out = [];
+  if (song.kind === 'midi') {
+    const midi = new self.Midi(buf);
+    const h = midi.header;
+    const sigs = h.timeSignatures.length ? h.timeSignatures : [{ ticks: 0, timeSignature: [4, 4] }];
+    sigs.forEach((s, i) => {
+      const [n, d] = s.timeSignature;
+      const step = (h.ppq * 4) / d;
+      const stop = i + 1 < sigs.length ? sigs[i + 1].ticks : midi.durationTicks;
+      for (let k = 0, tk = s.ticks; tk < stop; k++, tk += step) out.push({ t: h.ticksToSeconds(tk), down: k % n === 0 });
+    });
+    return out;
+  }
+  const xml = /\.mxl$/i.test(song.fileName) ? await unzipMxl(buf) : new TextDecoder().decode(buf);
+  const { map, measures } = parseMusicXML(xml);
+  for (const m of measures) {
+    const unit = 4 / m.beatType; // quarters per beat
+    for (let k = 0; k * unit < m.len - 1e-6; k++) out.push({ t: quarterSec(map, m.q + k * unit), down: k === 0 });
+  }
+  return out;
 }
 
 // ---------- .mxl (zip) ----------

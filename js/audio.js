@@ -38,6 +38,18 @@ export function suspendAudio() {
 }
 
 // ---------- Playback (Headphones setting only) ----------
+// Metronome tick: a short blip, higher on the downbeat.
+export function click(down) {
+  if (!ctx || ctx.state !== 'running') return;
+  const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
+  o.frequency.value = down ? 1760 : 1320;
+  g.gain.setValueAtTime(down ? 0.35 : 0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  o.connect(g).connect(ctx.destination);
+  o.start(t);
+  o.stop(t + 0.06);
+}
+
 let tonePromise = null, synth = null;
 
 const play = (midi, dur) =>

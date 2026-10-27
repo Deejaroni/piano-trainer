@@ -87,6 +87,24 @@
       padding: 88px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
     #d-msg { font-size: 26px; font-weight: 600; min-height: 1.4em; text-align: center; }
     #staff { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; background: #f7f5ef; border-radius: 12px; }
+    #d-hint { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 0; }
+    #d-hint:empty { display: none; }
+    #d-hint svg { max-width: 100%; height: auto; }
+    .d-name { font-size: 34px; font-weight: 700; }
+    .beat { align-self: center; width: 18px; height: 18px; margin: 0 10px 0 4px; border-radius: 50%; background: var(--track); }
+    .beat.on { background: #fff; box-shadow: 0 0 14px #fff; }
+    .beat.down { background: var(--grad); box-shadow: 0 0 18px rgba(255, 120, 200, .8); }
+    #stats { justify-content: flex-start; align-items: stretch; gap: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #stats h3 { margin: 12px 0 0; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 18px; }
+    .card b { display: block; font-size: 30px; font-variant-numeric: tabular-nums; }
+    .chart { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; }
+    .chart > div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; }
+    .chart i { display: block; width: 100%; min-height: 2px; border-radius: 4px; background: var(--grad); }
+    #s-songs { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    #s-songs th, #s-songs td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+    #s-songs th { color: var(--muted); font-weight: 600; font-size: 15px; }
     #version { position: fixed; right: 16px; bottom: 12px; color: var(--muted); font-size: 14px; }
   </style>
 </head>
@@ -95,6 +113,7 @@
     <button id="tab-library" class="on">Library</button>
     <button id="tab-practice">Practice</button>
     <button id="tab-drills">Drills</button>
+    <button id="tab-stats">Stats</button>
     <button id="tab-listen">Listen</button>
   </nav>
   <main id="library">
@@ -114,7 +133,8 @@
       <button id="p-restart" class="btn">Restart</button>
       <span class="seg" id="p-mode"></span>
       <span class="seg" id="p-hands"></span>
-      <label class="tempo">Tempo <span id="p-tempo-val">100%</span><input id="p-tempo" type="range" min="25" max="100" step="5"></label>
+      <span class="seg" id="p-speed" data-label="Speed"></span>
+      <span class="seg"><button id="p-ramp" class="small">Ramp</button><button id="p-metro" class="small">Metronome</button><span id="p-beat" class="beat"></span></span>
       <span class="seg"><button id="p-a" class="small">A</button><button id="p-b" class="small">B</button><button id="p-loop" class="small" disabled>Loop</button></span>
       <span class="seg" id="p-view"></span>
       <span class="seg" id="p-guide"></span>
@@ -131,10 +151,21 @@
       <span class="seg" id="d-range" data-label="Range"></span>
       <span class="seg" id="d-acc" data-label="♯ ♭"></span>
       <span class="seg" id="d-kind"></span>
+      <span class="seg" id="d-names" data-label="Names"></span>
     </div>
     <div id="d-msg"></div>
     <div id="staff"></div>
+    <div id="d-hint"></div>
     <div id="d-sum" class="muted">Tap Start, then play the note shown on the staff.</div>
+  </main>
+  <main id="stats" hidden>
+    <div class="cards" id="s-cards"></div>
+    <h3>Last 14 days</h3>
+    <div class="chart" id="s-chart"></div>
+    <h3>Drills</h3>
+    <div id="s-drill" class="muted"></div>
+    <h3>Songs</h3>
+    <table id="s-songs"></table>
   </main>
   <main id="listen" hidden>
     <button id="start">Start</button>
@@ -145,7 +176,7 @@
   </main>
   <dialog id="song-dialog">
     <h2 id="sd-title"></h2>
-    <div class="row"><span class="label">Tempo <span id="sd-tempo-val"></span></span><input id="sd-tempo" type="range" min="25" max="100" step="5"></div>
+    <div class="row"><span class="label">Speed</span><span class="seg" id="sd-speed"></span></div>
     <div class="row"><span class="label">Hands to play</span><span class="seg" id="sd-hands"></span></div>
     <div class="row"><span class="label">Wait for correct note</span><span class="seg" id="sd-wait"></span></div>
     <h3>Tracks</h3>

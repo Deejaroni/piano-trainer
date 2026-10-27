@@ -1,12 +1,13 @@
-import { startMic, audioContext, spectrumAnalyser, suspendAudio, loadSynth } from './js/audio.js';
+import { startMic, audioContext, spectrumAnalyser, suspendAudio, loadSynth, click } from './js/audio.js';
 import { createChordVerifier } from './js/chords.js';
 import { createFalling } from './js/falling.js';
 import { createPractice } from './js/practice.js';
 import { createNotation } from './js/notation.js';
 import { createDrills } from './js/drills.js';
 import { listSongs, putSong, deleteSong, exportAll, importAll } from './js/storage.js';
-import { importFile, applyHands } from './js/songs.js';
+import { importFile, applyHands, beatsOf } from './js/songs.js';
 import { loadAppSettings, saveAppSettings } from './js/settings.js';
+import { loadStats, reloadStats, flushStats, addTime, sessionTime, recordRun, recordDrill, dayKey } from './js/stats.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -59,7 +60,7 @@ async function start() {
 $('start').addEventListener('click', start);
 
 // ---------- Tabs ----------
-const TABS = ['library', 'practice', 'drills', 'listen'];
+const TABS = ['library', 'practice', 'drills', 'stats', 'listen'];
 function showTab(name) {
   for (const n of TABS) {
     $(n).hidden = n !== name;
@@ -69,6 +70,7 @@ function showTab(name) {
   else { prac.pause(); stopLoop(); }
   if (name === 'drills') openDrills();
   else stopDrills();
+  if (name === 'stats') renderStats();
   if (name === 'listen' && listenTick && !listenRaf) listenTick();
 }
 for (const name of TABS) $('tab-' + name).addEventListener('click', () => showTab(name));
@@ -145,8 +147,8 @@ function openSongDialog(song) {
   editing = { song, settings: { ...song.settings }, hands: { ...song.trackHands } };
   const st = editing.settings;
   $('sd-title').textContent = song.title;
-  $('sd-tempo').value = st.tempo;
-  $('sd-tempo-val').textContent = st.tempo + '%';
+  st.tempo = snapTempo(st.tempo);
+  seg($('sd-speed'), SPEEDS.map((v) => [v, v / 100 + '×']), st.tempo, (v) => { st.tempo = v; });
   seg($('sd-hands'), [['both', 'Both'], ['R', 'Right'], ['L', 'Left']], st.hands, (v) => { st.hands = v; });
   seg($('sd-wait'), [[true, 'On'], [false, 'Off']], st.wait, (v) => { st.wait = v; });
   $('sd-tracks').replaceChildren(...song.tracks.map((t) => {
@@ -157,10 +159,6 @@ function openSongDialog(song) {
   $('song-dialog').showModal();
 }
 
-$('sd-tempo').addEventListener('input', (e) => {
-  editing.settings.tempo = +e.target.value;
-  $('sd-tempo-val').textContent = e.target.value + '%';
-});
 $('sd-cancel').addEventListener('click', () => $('song-dialog').close());
 $('sd-save').addEventListener('click', async () => {
   const { song, settings, hands } = editing;
@@ -200,6 +198,7 @@ $('restore').addEventListener('change', async (e) => {
   if (!f || !confirm('Replace all songs and settings with this backup?')) return;
   try {
     const n = await importAll(JSON.parse(await f.text()));
+    await reloadStats();
     msg(`Restored ${n} songs.`);
     await initSettings();
     renderLibrary();
@@ -233,11 +232,29 @@ const LOOK = 3; // real seconds of notes visible above the keyboard
 const fall = createFalling($('fall'));
 const prac = createPractice();
 const sheet = createNotation($('sheet'));
-let pSong = null, detector = null, chord = null, debug = false, raf = 0, lastTs = 0, shown = '';
+let pSong = null, detector = null, chord = null, debug = false, raf = 0, lastTs = 0, shown = '', beatN = 0;
+const SPEEDS = [10, 25, 50, 75, 100]; // percent of written tempo
+const snapTempo = (t) => SPEEDS.reduce((a, b) => (Math.abs(b - t) < Math.abs(a - t) ? b : a));
+
+// Full run or loop pass: record it, and with Ramp on step up after a clean one.
+prac.onRun = ({ loop, hits, misses, total }) => {
+  if (!pSong || !total) return;
+  if (!loop) recordRun(pSong.id, { pct: hits / total, full: !prac.wait && hits === total, speed: prac.speed, wait: prac.wait });
+  const clean = prac.wait ? true : misses === 0 && hits === total;
+  const i = SPEEDS.indexOf(pSong.settings.tempo);
+  if (appSettings.ramp && clean && i >= 0 && i < SPEEDS.length - 1) {
+    pSong.settings.tempo = SPEEDS[i + 1];
+    prac.speed = pSong.settings.tempo / 100;
+    saveSong();
+    syncControls();
+  }
+};
 
 function loadPractice(song) {
   pSong = song;
+  song.settings.tempo = snapTempo(song.settings.tempo); // old songs saved slider values
   prac.load(song);
+  beatsOf(song).then((b) => { if (pSong === song) prac.setBeats(b); }).catch(() => {});
   fall.setSong(prac.notes);
   $('p-title').textContent = song.title;
   $('p-play').disabled = false;
@@ -264,8 +281,11 @@ function syncControls() {
   seg($('p-guide'), [100, 60, 30, 0].map((v) => [v, v + '%']), appSettings.guide, (v) => {
     appSettings.guide = v; saveAppSettings(appSettings);
   });
-  $('p-tempo').value = Math.round(prac.speed * 100);
-  $('p-tempo-val').textContent = $('p-tempo').value + '%';
+  seg($('p-speed'), SPEEDS.map((v) => [v, v / 100 + '×']), pSong.settings.tempo, (v) => {
+    prac.speed = v / 100; pSong.settings.tempo = v; saveSong();
+  });
+  $('p-ramp').classList.toggle('on', appSettings.ramp);
+  $('p-metro').classList.toggle('on', appSettings.metro);
   syncLoop();
   syncView();
 }
@@ -289,11 +309,15 @@ function syncLoop() {
   $('p-loop').disabled = a == null || b == null;
 }
 
-$('p-tempo').addEventListener('input', (e) => {
-  prac.speed = e.target.value / 100;
-  $('p-tempo-val').textContent = e.target.value + '%';
+$('p-ramp').addEventListener('click', () => {
+  appSettings.ramp = !appSettings.ramp; saveAppSettings(appSettings);
+  $('p-ramp').classList.toggle('on', appSettings.ramp);
 });
-$('p-tempo').addEventListener('change', (e) => { pSong.settings.tempo = +e.target.value; saveSong(); });
+// Metronome: the beat dot pulses; the click sounds only with Headphones on (the mic would hear it).
+$('p-metro').addEventListener('click', () => {
+  appSettings.metro = !appSettings.metro; saveAppSettings(appSettings);
+  $('p-metro').classList.toggle('on', appSettings.metro);
+});
 
 function setMark(k) {
   const L = prac.loop;
@@ -345,6 +369,16 @@ function frame(ts) {
   lastTs = ts;
   const { db, note } = detector ? detector.read() : { db: -100, note: null };
   prac.update(dt, note, db, chord);
+  if (prac.playing) addTime(dt);
+  if (prac.beat.n !== beatN) {
+    beatN = prac.beat.n;
+    if (appSettings.metro) {
+      const dot = $('p-beat');
+      dot.className = 'beat ' + (prac.beat.down ? 'down' : 'on');
+      setTimeout(() => { dot.className = 'beat'; }, 110);
+      if (appSettings.headphones) click(prac.beat.down);
+    }
+  }
   if (!$('fall').hidden) fall.draw(prac.t, LOOK * prac.speed, note ? note.midi : null, appSettings.guide / 100);
   if (!$('sheet').hidden) sheet.update(prac.t);
   if (debug && chord) fall.drawDebug(chord.debug());
@@ -370,8 +404,8 @@ function startLoop() {
 function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
 
 // ---------- Drills ----------
-const drill = createDrills($('staff'));
-let drillReady = null, drillRaf = 0, dShown = '';
+const drill = createDrills($('staff'), $('d-hint'), recordDrill);
+let drillReady = null, drillRaf = 0, dShown = '', drillTs = 0;
 
 function openDrills() {
   const o = appSettings.drill;
@@ -380,6 +414,7 @@ function openDrills() {
   seg($('d-range'), [['staff', 'Staff'], ['ledger', 'Ledger lines']], o.range, set('range'));
   seg($('d-acc'), [[false, 'Off'], [true, 'On']], o.acc, set('acc'));
   seg($('d-kind'), [['notes', 'Notes'], ['chords', 'Chords']], o.kind, set('kind'));
+  seg($('d-names'), [[false, 'Off'], [true, 'On']], !!o.names, set('names'));
   drillReady = drillReady || drill.init(o).catch((err) => { drillReady = null; $('d-msg').textContent = err.message; });
   drill.redraw();
 }
@@ -393,7 +428,9 @@ function stopDrills() {
   dShown = '';
 }
 
-function drillFrame() {
+function drillFrame(ts) {
+  addTime(Math.min(0.1, (ts - drillTs) / 1000));
+  drillTs = ts;
   const { note } = detector.read();
   drill.update(note, chord, appSettings.chords === 'relaxed');
   const txt = drill.status() + '|' + drill.summary();
@@ -415,6 +452,7 @@ $('d-start').addEventListener('click', async () => {
     $('d-sum').textContent = '';
     drill.start();
     $('d-start').textContent = 'Stop';
+    drillTs = performance.now();
     drillRaf = requestAnimationFrame(drillFrame);
   } catch (err) {
     $('d-msg').textContent = 'Audio error: ' + err.message;
@@ -422,8 +460,55 @@ $('d-start').addEventListener('click', async () => {
 });
 window.addEventListener('resize', () => { if (!$('drills').hidden) drill.redraw(); });
 
+// ---------- Stats ----------
+const fmtDur = (sec) => {
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+};
+
+async function renderStats() {
+  const st = await loadStats();
+  const days = st.days;
+  const all = Object.values(days).reduce((a, b) => a + b, 0);
+  // Streak: consecutive days with practice, ending today (or yesterday if not yet today).
+  const d = new Date();
+  if (!days[dayKey(d)]) d.setDate(d.getDate() - 1);
+  let streak = 0;
+  while (days[dayKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
+  const card = (label, value) => el('div', { className: 'card' }, el('b', { textContent: value }), el('span', { className: 'muted', textContent: label }));
+  $('s-cards').replaceChildren(
+    card('This session', fmtDur(sessionTime())),
+    card('Today', fmtDur(days[dayKey()] || 0)),
+    card('All time', fmtDur(all)),
+    card('Day streak', String(streak)));
+
+  const last = [];
+  for (let i = 13; i >= 0; i--) { const x = new Date(); x.setDate(x.getDate() - i); last.push(x); }
+  const max = Math.max(60, ...last.map((x) => days[dayKey(x)] || 0));
+  $('s-chart').replaceChildren(...last.map((x) => {
+    const sec = days[dayKey(x)] || 0;
+    const bar = el('i');
+    bar.style.height = (sec / max) * 100 + '%';
+    return el('div', { title: fmtDur(sec) }, el('span', { textContent: sec >= 60 ? Math.round(sec / 60) : '' }), bar,
+      el('span', { textContent: x.toLocaleDateString(undefined, { weekday: 'narrow' }) }));
+  }));
+
+  const dr = st.drill;
+  $('s-drill').textContent = dr.n
+    ? `${dr.n} answered · ${Math.round((100 * dr.first) / dr.n)}% first try · avg ${(dr.ms / dr.n / 1000).toFixed(1)} s`
+    : 'No drills yet.';
+
+  const songs = (await listSongs()).sort((a, b) => a.title.localeCompare(b.title));
+  const head = el('tr', {}, ...['Song', 'Runs', 'Best', '100 %', 'Fastest 100 %'].map((t) => el('th', { textContent: t })));
+  $('s-songs').replaceChildren(head, ...songs.map((s) => {
+    const r = st.songs[s.id] || { runs: 0, full: 0, best: 0, bestSpeed: 0 };
+    return el('tr', {}, ...[s.title, r.runs, r.runs ? Math.round(r.best * 100) + ' %' : '–',
+      r.full ? '★ ' + r.full : '–', r.bestSpeed ? r.bestSpeed + '×' : '–'].map((t) => el('td', { textContent: t })));
+  }));
+}
+
 // Background: pause cleanly; the user taps Play (or Start) to continue.
-function toBackground() { prac.pause(); stopLoop(); stopDrills(); suspendAudio(); }
+function toBackground() { prac.pause(); stopLoop(); stopDrills(); suspendAudio(); flushStats(); }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) toBackground();
   else if (!$('practice').hidden) startLoop();
@@ -431,4 +516,5 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', toBackground);
 
 initSettings();
+loadStats();
 renderLibrary();

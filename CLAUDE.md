@@ -113,6 +113,14 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   + 8 dB, min -90 dB; clarity 0.8. Drills also accept a single target on a fresh
   spectral attack (chord verifier) when pitchy hears nothing else. Listen tab
   shows floor and gate.
+- v0.7.0: Drills: Names toggle (always show the note name); after 4 wrong
+  attempts the name shows, after 5 a key row with the target lit (same wrong
+  note re-counts after 8 silent frames). Practice: speed presets 0.1/0.25/0.5/
+  0.75/1x (old slider values snap), Ramp steps up one preset after a clean run or
+  loop pass, Metronome (beats from the stored file via songs.js beatsOf; dot
+  pulses, click only with Headphones). js/stats.js (kv 'stats'): seconds per
+  day, per-song runs/best %/100 % (Free play, every note hit)/fastest 100 %,
+  drill totals. Stats tab: session/today/all-time/streak, 14-day chart, songs.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

@@ -30,12 +30,33 @@ const FLAT = ['c', 'd', 'd', 'e', 'e', 'f', 'g', 'g', 'a', 'a', 'b', 'b'];
 const GREEN = '#16a34a', RED = '#dc2626';
 const NEXT_S = 0.4;     // pause on a correct answer before the next target
 const RELEASE_FRAMES = 10; // the last answer must stop or change this long before it can count as wrong
+const REARM_FRAMES = 8; // silence before the same wrong note counts as another attempt
+const NAME_AFTER = 4;   // wrong attempts before the note name is shown
+const KEYS_AFTER = 5;   // wrong attempts before the keyboard hint is shown
 
 const isWhite = (m) => [0, 2, 4, 5, 7, 9, 11].includes(m % 12);
 const oct = (m) => Math.floor(m / 12) - 1;
 const vfKey = (m, flat) => `${(flat ? FLAT : SHARP)[m % 12]}${isWhite(m) ? '' : flat ? 'b' : '#'}/${oct(m)}`;
 const label = (m, flat) => (flat ? FLAT : SHARP)[m % 12].toUpperCase() + (isWhite(m) ? '' : flat ? '♭' : '♯') + oct(m);
 const labelOf = (t) => t.pitches.map((m) => label(m, t.flat)).join(' ');
+
+// A short keyboard around the target with its key(s) lit; C keys are labelled.
+function keysSvg(pitches) {
+  let lo = Math.min(...pitches) - 7, hi = Math.max(...pitches) + 7;
+  if (!isWhite(lo)) lo--;
+  if (!isWhite(hi)) hi++;
+  const KW = 28, KH = 100, BW = 18, BH = 62;
+  let x = 0, whites = '', blacks = '';
+  for (let m = lo; m <= hi; m++) {
+    const on = pitches.includes(m);
+    if (isWhite(m)) {
+      whites += `<rect x="${x}" y="0" width="${KW}" height="${KH}" rx="3" fill="${on ? '#22c55e' : '#fff'}" stroke="#333"/>`;
+      if (m % 12 === 0) whites += `<text x="${x + KW / 2}" y="${KH - 8}" text-anchor="middle" font-size="11" fill="#555">C${oct(m)}</text>`;
+      x += KW;
+    } else blacks += `<rect x="${x - BW / 2}" y="0" width="${BW}" height="${BH}" rx="2" fill="${on ? '#16a34a' : '#111'}"/>`;
+  }
+  return `<svg viewBox="-1 -1 ${x + 2} ${KH + 2}" width="${x + 2}" height="${KH + 2}">${whites}${blacks}</svg>`;
+}
 
 function pool(o) {
   const out = [];
@@ -52,10 +73,12 @@ function pool(o) {
   return out;
 }
 
-// box: element the staff is drawn into.
-export function createDrills(box) {
+// box: element the staff is drawn into; hintBox: note name / keyboard hints.
+// onAnswer(ms, firstTry) is called for every correct answer.
+export function createDrills(box, hintBox, onAnswer) {
   let VF = null, opts = null, stats = {}, cands = [], cur = null, prevId = null;
   let running = false, shownAt = 0, doneAt = 0, missed = false, wrong = null, held = -1, away = 0, session = [], msg = '';
+  let tries = 0, gap = 0, rearm = false;
 
   // Unseen targets and slow or often-missed ones come up more.
   function weight(c) {
@@ -71,7 +94,7 @@ export function createDrills(box) {
     const pick = list.find((c) => (r -= weight(c)) <= 0) || list[list.length - 1];
     cur = { ...pick, flat: opts.acc && Math.random() < 0.5 };
     prevId = cur.id;
-    missed = false; wrong = null; doneAt = 0;
+    missed = false; wrong = null; doneAt = 0; tries = 0; gap = 0; rearm = false;
     msg = cur.pitches.length > 1 ? 'Play this chord' : 'Play this note';
     draw();
     shownAt = performance.now() / 1000;
@@ -85,6 +108,7 @@ export function createDrills(box) {
     s.ms = s.ms * 0.7 + ms * 0.3;
     setKV('drillStats', stats).catch(() => {});
     session.push({ label: labelOf(cur), ms, missed });
+    if (onAnswer) onAnswer(ms, !missed);
     held = cur.pitches.length === 1 ? cur.pitches[0] : -1;
     away = 0;
     wrong = null;
@@ -106,8 +130,18 @@ export function createDrills(box) {
     return n;
   }
 
+  function drawHint() {
+    hintBox.replaceChildren();
+    if (!cur) return;
+    if (opts.names || tries >= NAME_AFTER) {
+      hintBox.append(Object.assign(document.createElement('div'), { className: 'd-name', textContent: labelOf(cur) }));
+    }
+    if (tries >= KEYS_AFTER) hintBox.insertAdjacentHTML('beforeend', keysSvg(cur.pitches));
+  }
+
   function draw() {
     if (!VF || !opts || !box.clientWidth) return;
+    drawHint();
     const { Renderer, Stave, StaveConnector, GhostNote, Formatter } = VF;
     box.replaceChildren();
     const both = opts.clef === 'both';
@@ -185,9 +219,11 @@ export function createDrills(box) {
       // Quiet notes: a fresh spectral attack on the target counts too, unless pitchy
       // hears a different note (an octave below would light the target as its 2nd harmonic).
       if ((m < 0 || m === held) && chord.match(cur.pitches, false)) { chord.consume(cur.pitches); return correct(now); }
-      if (m < 0 || m === held) return;
-      if (m !== wrong) {
-        wrong = m; missed = true;
+      if (m < 0 || m === held) { if (++gap >= REARM_FRAMES) rearm = true; return; }
+      gap = 0;
+      // A different wrong note, or the same one played again after a pause, is one more attempt.
+      if (m !== wrong || rearm) {
+        wrong = m; missed = true; rearm = false; tries++;
         msg = `You played ${label(m, false)}, try again`;
         draw();
       }
