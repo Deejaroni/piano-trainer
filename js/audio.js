@@ -12,8 +12,22 @@ export const spectrumAnalyser = () => spectrum; // set once startMic() resolves
 // The old stream then reads silence, so every tap checks it and reconnects if needed.
 const micLive = () => !!stream && stream.getAudioTracks().some((t) => t.readyState === 'live' && !t.muted);
 
-// Audio output only (Listen mode). Call from a tap: creates/resumes synchronously so iOS counts it.
-export function startAudio() {
+// iOS audio session (Safari 16.4+): 'playback' plays at full volume even in silent mode;
+// with the mic open the session is 'play-and-record', which turns the speaker way down.
+function session(type) {
+  try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) { /* older iOS */ }
+}
+
+// Listen mode: release the mic and play through the speaker. Call from a tap.
+// The next startMic() re-acquires the mic (the stopped track no longer counts as live).
+export function startPlayback() {
+  if (stream) for (const t of stream.getTracks()) t.stop();
+  session('playback');
+  return startAudio();
+}
+
+// Creates/resumes the context synchronously so iOS counts the tap.
+function startAudio() {
   ctx = ctx || new AudioContext();
   // An 'interrupted' iOS context may never settle resume(), so don't wait on it forever.
   return ctx.state === 'running' ? Promise.resolve()
@@ -21,6 +35,7 @@ export function startAudio() {
 }
 
 export function startMic() {
+  session('play-and-record');
   const resumed = startAudio();
   if (detector && micLive()) return resumed.then(() => detector);
   pending = pending || resumed

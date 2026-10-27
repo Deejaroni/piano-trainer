@@ -1,4 +1,4 @@
-import { startMic, startAudio, audioContext, spectrumAnalyser, suspendAudio, loadSynth, click } from './js/audio.js';
+import { startMic, startPlayback, audioContext, spectrumAnalyser, suspendAudio, loadSynth, click } from './js/audio.js';
 import { createChordVerifier } from './js/chords.js';
 import { createFalling } from './js/falling.js';
 import { createPractice } from './js/practice.js';
@@ -346,7 +346,7 @@ $('p-play').addEventListener('click', async () => {
   if (prac.playing) { prac.pause(); return; }
   try {
     if (prac.listen) {
-      await startAudio(); // inside the tap: creates/resumes audio
+      await startPlayback(); // inside the tap: frees the mic, creates/resumes audio
       prac.setPlayer(await loadSynth());
       prac.play();
       return;

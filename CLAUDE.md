@@ -130,6 +130,10 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   settings.listen): the song plays itself through the synth (no mic, so the
   speaker is allowed), nothing judged, no runs/Ramp. A-B loop relabelled
   Section start / Section end / Repeat section, plus a clear button.
+- v0.7.3: Listen was silent on iPad (synth output fine on desktop). Likely iOS
+  silent mode and/or the open mic (play-and-record ducks the speaker). Listen
+  now stops the mic tracks and sets navigator.audioSession.type = 'playback';
+  startMic sets 'play-and-record' and re-acquires.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD
