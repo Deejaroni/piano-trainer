@@ -102,9 +102,16 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
 - v0.5.5: UI restyle (CSS only): near-black glass nav with gradient tab underline,
   panel buttons, segmented groups with gradient-outlined selection, gradient
   primary buttons and slider track (--grad matches the hit line).
+- v0.6.0 (Phase 6): Drills tab, js/drills.js. VexFlow (lazy) draws one random
+  whole note or 2-3 note chord; options clef treble|bass|both, range staff|ledger
+  (2 ledger lines), sharps/flats, notes|chords (saved in appSettings.drill).
+  Notes via pitchy (wrong note shown red; last answer ignored until it stops),
+  chords via the chord verifier. Per-target EMA of time + miss rate in kv
+  'drillStats' weights picks; session summary under the staff.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD
   speed on long scores untested on iPad. Sheet does not colour hits/misses.
-- Next: test Practice + chords + sheet view on iPad with the Debug overlay; tune
-  ON_DB, RISE_DB and Free play window.
+  Drills tested on desktop with a simulated tone only (chord drills unheard).
+- Next: test Practice, chords, sheet view and Drills on iPad with the Debug
+  overlay; tune ON_DB, RISE_DB and Free play window.

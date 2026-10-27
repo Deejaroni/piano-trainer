@@ -60,6 +60,7 @@
     .seg .small { border-color: transparent; background: transparent; color: var(--muted); min-height: 44px; }
     .seg .small.on { color: #fff; border-color: transparent; background: linear-gradient(var(--chip), var(--chip)) padding-box, var(--grad) border-box; }
     .seg .small:disabled { opacity: .35; }
+    .seg[data-label]::before { content: attr(data-label); align-self: center; padding: 0 8px 0 11px; color: var(--muted); font-size: 16px; }
     #p-guide::before { content: 'Guide'; align-self: center; padding: 0 8px 0 11px; color: var(--muted); font-size: 16px; }
     input[type=range] { -webkit-appearance: none; appearance: none; width: 280px; height: 44px; background: transparent; }
     input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--grad); }
@@ -82,6 +83,10 @@
     #status { color: var(--muted); min-height: 1.4em; }
     #note { font-size: 140px; font-weight: 700; line-height: 1; min-height: 140px; font-variant-numeric: tabular-nums; }
     #detail { color: var(--muted); font-size: 22px; min-height: 1.4em; font-variant-numeric: tabular-nums; }
+    #drills { justify-content: flex-start; align-items: stretch; gap: 12px;
+      padding: 88px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+    #d-msg { font-size: 26px; font-weight: 600; min-height: 1.4em; text-align: center; }
+    #staff { flex: 1; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; background: #f7f5ef; border-radius: 12px; }
     #version { position: fixed; right: 16px; bottom: 12px; color: var(--muted); font-size: 14px; }
   </style>
 </head>
@@ -89,6 +94,7 @@
   <nav>
     <button id="tab-library" class="on">Library</button>
     <button id="tab-practice">Practice</button>
+    <button id="tab-drills">Drills</button>
     <button id="tab-listen">Listen</button>
   </nav>
   <main id="library">
@@ -117,6 +123,18 @@
     <div><b id="p-title"></b> <span id="p-score" class="muted">Pick a song in the Library.</span> <span id="p-viewnote" class="muted"></span></div>
     <div id="sheet" hidden></div>
     <canvas id="fall"></canvas>
+  </main>
+  <main id="drills" hidden>
+    <div class="bar">
+      <button id="d-start" class="btn primary">Start</button>
+      <span class="seg" id="d-clef" data-label="Clef"></span>
+      <span class="seg" id="d-range" data-label="Range"></span>
+      <span class="seg" id="d-acc" data-label="♯ ♭"></span>
+      <span class="seg" id="d-kind"></span>
+    </div>
+    <div id="d-msg"></div>
+    <div id="staff"></div>
+    <div id="d-sum" class="muted">Tap Start, then play the note shown on the staff.</div>
   </main>
   <main id="listen" hidden>
     <button id="start">Start</button>

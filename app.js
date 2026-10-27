@@ -3,6 +3,7 @@ import { createChordVerifier } from './js/chords.js';
 import { createFalling } from './js/falling.js';
 import { createPractice } from './js/practice.js';
 import { createNotation } from './js/notation.js';
+import { createDrills } from './js/drills.js';
 import { listSongs, putSong, deleteSong, exportAll, importAll } from './js/storage.js';
 import { importFile, applyHands } from './js/songs.js';
 import { loadAppSettings, saveAppSettings } from './js/settings.js';
@@ -58,7 +59,7 @@ async function start() {
 $('start').addEventListener('click', start);
 
 // ---------- Tabs ----------
-const TABS = ['library', 'practice', 'listen'];
+const TABS = ['library', 'practice', 'drills', 'listen'];
 function showTab(name) {
   for (const n of TABS) {
     $(n).hidden = n !== name;
@@ -66,6 +67,8 @@ function showTab(name) {
   }
   if (name === 'practice') startLoop();
   else { prac.pause(); stopLoop(); }
+  if (name === 'drills') openDrills();
+  else stopDrills();
   if (name === 'listen' && listenTick && !listenRaf) listenTick();
 }
 for (const name of TABS) $('tab-' + name).addEventListener('click', () => showTab(name));
@@ -366,8 +369,61 @@ function startLoop() {
 }
 function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
 
-// Background: pause cleanly; the user taps Play to continue.
-function toBackground() { prac.pause(); stopLoop(); suspendAudio(); }
+// ---------- Drills ----------
+const drill = createDrills($('staff'));
+let drillReady = null, drillRaf = 0, dShown = '';
+
+function openDrills() {
+  const o = appSettings.drill;
+  const set = (k) => (v) => { o[k] = v; saveAppSettings(appSettings); drill.setOptions(o); };
+  seg($('d-clef'), [['treble', 'Treble'], ['bass', 'Bass'], ['both', 'Both']], o.clef, set('clef'));
+  seg($('d-range'), [['staff', 'Staff'], ['ledger', 'Ledger lines']], o.range, set('range'));
+  seg($('d-acc'), [[false, 'Off'], [true, 'On']], o.acc, set('acc'));
+  seg($('d-kind'), [['notes', 'Notes'], ['chords', 'Chords']], o.kind, set('kind'));
+  drillReady = drillReady || drill.init(o).catch((err) => { drillReady = null; $('d-msg').textContent = err.message; });
+  drill.redraw();
+}
+
+// Stopping ends the round; the summary stays on screen.
+function stopDrills() {
+  cancelAnimationFrame(drillRaf); drillRaf = 0;
+  if (drill.running) drill.stop();
+  $('d-start').textContent = 'Start';
+  $('d-msg').textContent = '';
+  dShown = '';
+}
+
+function drillFrame() {
+  const { note } = detector.read();
+  drill.update(note, chord, appSettings.chords === 'relaxed');
+  const txt = drill.status() + '|' + drill.summary();
+  if (txt !== dShown) {
+    dShown = txt;
+    const [m, sum] = txt.split('|');
+    $('d-msg').textContent = m;
+    if (sum) $('d-sum').textContent = sum;
+  }
+  drillRaf = requestAnimationFrame(drillFrame);
+}
+
+$('d-start').addEventListener('click', async () => {
+  if (drill.running) { stopDrills(); return; }
+  try {
+    detector = await startMic(); // inside the tap: creates/resumes audio
+    chord = chord || createChordVerifier(spectrumAnalyser(), audioContext().sampleRate);
+    await drillReady;
+    $('d-sum').textContent = '';
+    drill.start();
+    $('d-start').textContent = 'Stop';
+    drillRaf = requestAnimationFrame(drillFrame);
+  } catch (err) {
+    $('d-msg').textContent = 'Audio error: ' + err.message;
+  }
+});
+window.addEventListener('resize', () => { if (!$('drills').hidden) drill.redraw(); });
+
+// Background: pause cleanly; the user taps Play (or Start) to continue.
+function toBackground() { prac.pause(); stopLoop(); stopDrills(); suspendAudio(); }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) toBackground();
   else if (!$('practice').hidden) startLoop();
