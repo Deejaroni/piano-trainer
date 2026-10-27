@@ -108,6 +108,11 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   Notes via pitchy (wrong note shown red; last answer ignored until it stops),
   chords via the chord verifier. Per-target EMA of time + miss rate in kv
   'drillStats' weights picks; session summary under the staff.
+- v0.6.1: iPad mic only heard notes close to the speaker. detect.js gate now
+  follows the room: noise floor (fast down, ~2 s up on unpitched frames only)
+  + 8 dB, min -90 dB; clarity 0.8. Drills also accept a single target on a fresh
+  spectral attack (chord verifier) when pitchy hears nothing else. Listen tab
+  shows floor and gate.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

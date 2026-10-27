@@ -176,13 +176,16 @@ export function createDrills(box) {
         away = m === held ? 0 : away + 1;
         if (away >= RELEASE_FRAMES) held = -1;
       }
+      chord.update(new Set(cur.pitches), now);
       if (cur.pitches.length > 1) {
-        chord.update(new Set(cur.pitches), now);
         if (chord.match(cur.pitches, relaxed)) { chord.consume(cur.pitches); correct(now); }
         return;
       }
-      if (m < 0 || m === held) return;
       if (m === cur.pitches[0]) return correct(now);
+      // Quiet notes: a fresh spectral attack on the target counts too, unless pitchy
+      // hears a different note (an octave below would light the target as its 2nd harmonic).
+      if ((m < 0 || m === held) && chord.match(cur.pitches, false)) { chord.consume(cur.pitches); return correct(now); }
+      if (m < 0 || m === held) return;
       if (m !== wrong) {
         wrong = m; missed = true;
         msg = `You played ${label(m, false)}, try again`;

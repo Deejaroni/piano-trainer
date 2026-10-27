@@ -38,11 +38,11 @@ async function start() {
     listenTick = () => {
       // Only one screen reads the detector at a time.
       if ($('listen').hidden || document.hidden) { listenRaf = 0; return; }
-      const { db, note } = detector.read();
+      const { db, gate, floor, note } = detector.read();
       // With AGC off the raw iPad mic is quiet; normal playing sits around -60..-30 dB.
       const pct = Math.max(0, Math.min(100, ((db + 80) / 60) * 100)); // -80 dB .. -20 dB
       $('level').style.width = pct + '%';
-      $('status').textContent = `Listening (${ctx.sampleRate} Hz) · ${db.toFixed(0)} dB`;
+      $('status').textContent = `Listening (${ctx.sampleRate} Hz) · ${db.toFixed(0)} dB · floor ${floor.toFixed(0)} · gate ${gate.toFixed(0)}`;
       $('note').textContent = note ? note.name : '–';
       $('detail').textContent = note
         ? `${note.freq.toFixed(1)} Hz · ${note.cents >= 0 ? '+' : ''}${note.cents}¢ · clarity ${note.clarity.toFixed(2)}`
