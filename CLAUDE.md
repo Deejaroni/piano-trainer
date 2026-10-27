@@ -126,6 +126,10 @@ drills, storage, settings), sw.js, manifest.webmanifest, /icons, /vendor,
   startMic() now re-acquires the mic on every tap if the track is ended/muted,
   reconnecting into the same analysers; resume() waits max 1 s ('interrupted').
   Practice bar has a mic level meter.
+- v0.7.2: Practice mode Listen (Wait | Free play | Listen, saved per song as
+  settings.listen): the song plays itself through the synth (no mic, so the
+  speaker is allowed), nothing judged, no runs/Ramp. A-B loop relabelled
+  Section start / Section end / Repeat section, plus a clear button.
 - Known issues: icons are placeholders. iPad mic input is very quiet. .mxl needs
   DecompressionStream (iOS 16.4+). Export uses the share sheet; untested on iPad.
   Phases 3-5 tested only on desktop with simulated input; thresholds and OSMD

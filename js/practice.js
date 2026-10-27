@@ -1,4 +1,5 @@
-// Practice engine: song clock, Wait / Free play judging, A-B loop, accompaniment.
+// Practice engine: song clock, Wait / Free play judging, Listen (song plays itself),
+// repeat section (loop a..b), accompaniment.
 // Times are song seconds; speed is the tempo fraction (0.1..1).
 const GROUP = 0.03;    // notes starting within 30 ms form one chord
 const EARLY = 0.15;    // real seconds a note may be played before it arrives
@@ -12,7 +13,7 @@ export function createPractice() {
   let beats = [], bi = 0, fromStart = false;
 
   const p = {
-    t: 0, playing: false, done: false, wait: true, speed: 1, hands: 'both', relaxed: true,
+    t: 0, playing: false, done: false, wait: true, listen: false, speed: 1, hands: 'both', relaxed: true,
     loop: { a: null, b: null, on: false },
     beat: { n: 0, down: false }, // n counts beats passed while playing (metronome)
     onRun: null, // ({ loop, hits, misses, total }) after a full run from the start or a loop pass
@@ -26,6 +27,7 @@ export function createPractice() {
         .sort((a, b) => a.start - b.start || a.pitch - b.pitch);
       duration = notes.length ? Math.max(...notes.map((n) => n.start + n.dur)) : 0;
       p.wait = song.settings.wait;
+      p.listen = !!song.settings.listen;
       p.speed = Math.min(1, song.settings.tempo / 100);
       beats = [];
       p.loop = { a: null, b: null, on: false };
@@ -97,7 +99,8 @@ export function createPractice() {
       if (!p.playing) return;
       let nt = p.t + dt * p.speed;
 
-      if (p.wait) {
+      if (p.listen) p.t = nt; // nothing is judged
+      else if (p.wait) {
         const g = groups[gi];
         if (g && nt >= g.time - EARLY * p.speed && ok(g)) { hit(g, db, chord); gi++; }
         else if (g && nt >= g.time) nt = Math.max(p.t, g.time); // hold until it is played
@@ -113,10 +116,11 @@ export function createPractice() {
         }
       }
 
-      // Accompaniment: the hand not being practiced.
-      while (playIdx < notes.length && notes[playIdx].start <= p.t) {
+      // Accompaniment: the hand not being practiced (Listen: every note).
+      const stop = p.loop.on ? p.loop.b : Infinity; // a note right at the section end belongs after it
+      while (playIdx < notes.length && notes[playIdx].start <= p.t && notes[playIdx].start < stop) {
         const n = notes[playIdx++];
-        if (!n.on && player) player(n.pitch, n.dur / p.speed);
+        if ((p.listen || !n.on) && player) player(n.pitch, n.dur / p.speed);
       }
       while (bi < beats.length && beats[bi].t <= p.t) p.beat = { n: p.beat.n + 1, down: beats[bi++].down };
 
@@ -127,7 +131,7 @@ export function createPractice() {
   };
 
   function pass(loop) {
-    if (!p.onRun || (!loop && !fromStart)) return;
+    if (!p.onRun || p.listen || (!loop && !fromStart)) return;
     const gs = loop ? groups.filter((g) => g.time >= p.loop.a && g.time < p.loop.b) : groups;
     let hits = 0, misses = 0;
     for (const g of gs) { if (g.s === 'hit') hits++; else if (g.s === 'miss') misses++; }

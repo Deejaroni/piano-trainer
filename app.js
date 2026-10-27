@@ -1,4 +1,4 @@
-import { startMic, audioContext, spectrumAnalyser, suspendAudio, loadSynth, click } from './js/audio.js';
+import { startMic, startAudio, audioContext, spectrumAnalyser, suspendAudio, loadSynth, click } from './js/audio.js';
 import { createChordVerifier } from './js/chords.js';
 import { createFalling } from './js/falling.js';
 import { createPractice } from './js/practice.js';
@@ -269,8 +269,12 @@ function openPractice(song) {
 function saveSong() { if (pSong) putSong(pSong); }
 
 function syncControls() {
-  seg($('p-mode'), [[true, 'Wait'], [false, 'Free play']], prac.wait, (v) => {
-    prac.wait = v; pSong.settings.wait = v; prac.restart(); saveSong();
+  // Listen: the song plays itself through the speaker; the mic isn't used, so no Headphones needed.
+  seg($('p-mode'), [['wait', 'Wait'], ['free', 'Free play'], ['listen', 'Listen']], prac.listen ? 'listen' : prac.wait ? 'wait' : 'free', (v) => {
+    prac.pause(); prac.setPlayer(null); // the next Play tap picks the right sound
+    prac.listen = pSong.settings.listen = v === 'listen';
+    if (v !== 'listen') prac.wait = pSong.settings.wait = v === 'wait';
+    prac.restart(); saveSong();
   });
   seg($('p-hands'), [['R', 'Right'], ['L', 'Left'], ['both', 'Both']], prac.hands, (v) => {
     prac.setHands(v); pSong.settings.hands = v; saveSong();
@@ -303,10 +307,11 @@ function syncView() {
 
 function syncLoop() {
   const { a, b, on } = prac.loop;
-  $('p-a').textContent = a == null ? 'A' : 'A ' + fmtTime(Math.max(0, a));
-  $('p-b').textContent = b == null ? 'B' : 'B ' + fmtTime(Math.max(0, b));
+  $('p-a').textContent = a == null ? 'Section start' : 'Start ' + fmtTime(Math.max(0, a));
+  $('p-b').textContent = b == null ? 'Section end' : 'End ' + fmtTime(Math.max(0, b));
   $('p-loop').classList.toggle('on', on);
   $('p-loop').disabled = a == null || b == null;
+  $('p-clear').disabled = a == null && b == null;
 }
 
 $('p-ramp').addEventListener('click', () => {
@@ -333,12 +338,19 @@ $('p-loop').addEventListener('click', () => {
   if (prac.loop.on) prac.seek(prac.loop.a);
   syncLoop();
 });
+$('p-clear').addEventListener('click', () => { prac.loop = { a: null, b: null, on: false }; syncLoop(); });
 $('p-restart').addEventListener('click', () => prac.restart());
 $('p-debug').addEventListener('click', () => { debug = !debug; $('p-debug').classList.toggle('on', debug); });
 
 $('p-play').addEventListener('click', async () => {
   if (prac.playing) { prac.pause(); return; }
   try {
+    if (prac.listen) {
+      await startAudio(); // inside the tap: creates/resumes audio
+      prac.setPlayer(await loadSynth());
+      prac.play();
+      return;
+    }
     detector = await startMic(); // inside the tap: creates/resumes audio
     chord = chord || createChordVerifier(spectrumAnalyser(), audioContext().sampleRate);
     prac.setPlayer(appSettings.headphones ? await loadSynth() : null);
@@ -389,7 +401,8 @@ function frame(ts) {
   // Touch the DOM only when the text changes.
   const { hits, misses, total } = prac.stats();
   const txt = (prac.playing ? 'Pause' : 'Play') + '|' + (pSong
-    ? `${fmtTime(Math.max(0, prac.t))} / ${fmtTime(prac.end)} · ${hits}/${total} hit` + (prac.wait ? '' : ` · ${misses} missed`) + (prac.done ? ' · Done' : '')
+    ? `${fmtTime(Math.max(0, prac.t))} / ${fmtTime(prac.end)} · ` + (prac.listen ? 'Listening'
+      : `${hits}/${total} hit` + (prac.wait ? '' : ` · ${misses} missed`)) + (prac.done ? ' · Done' : '')
     : 'Pick a song in the Library.');
   if (txt !== shown) {
     shown = txt;

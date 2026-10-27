@@ -12,12 +12,16 @@ export const spectrumAnalyser = () => spectrum; // set once startMic() resolves
 // The old stream then reads silence, so every tap checks it and reconnects if needed.
 const micLive = () => !!stream && stream.getAudioTracks().some((t) => t.readyState === 'live' && !t.muted);
 
-export function startMic() {
-  // Create/resume synchronously, before any await, so iOS counts it as the tap.
+// Audio output only (Listen mode). Call from a tap: creates/resumes synchronously so iOS counts it.
+export function startAudio() {
   ctx = ctx || new AudioContext();
   // An 'interrupted' iOS context may never settle resume(), so don't wait on it forever.
-  const resumed = ctx.state === 'running' ? Promise.resolve()
+  return ctx.state === 'running' ? Promise.resolve()
     : Promise.race([ctx.resume(), new Promise((r) => setTimeout(r, 1000))]);
+}
+
+export function startMic() {
+  const resumed = startAudio();
   if (detector && micLive()) return resumed.then(() => detector);
   pending = pending || resumed
     .then(() => navigator.mediaDevices.getUserMedia({
